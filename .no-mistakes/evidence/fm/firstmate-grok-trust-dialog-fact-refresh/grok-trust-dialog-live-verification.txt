@@ -1,0 +1,47 @@
+Live verification, 2026-09-11, grok 1.0.25 (f7e67d6988e2) [stable], tmux, Linux.
+Reproduces the fact this branch corrects in .agents/skills/harness-adapters/references/harness/grok.md
+and docs/verification/runtime-backends.md.
+
+## grok --help omits --trust (still accepted)
+$ grok --help 2>&1 | grep -i trust
+(no output, exit 1 -- flag is undocumented)
+$ grok --trust --version
+grok 1.0.25 (f7e67d6988e2) [stable]
+(exit 0)
+
+## Fresh git project + AGENTS.md, launched `grok --always-approve` (no --trust)
+Command: tmux new-session ... -c <fresh-git-project-with-AGENTS.md> "grok --always-approve"
+
+Rendered pane (captured without sending any keys):
+
+   master /tmp/grok-trust-verify.XXXXXX/proj-notrust
+   ...
+                                              Do you trust the contents of this directory?
+                                               /tmp/grok-trust-verify.XXXXXX/proj-notrust
+
+                                        Grok Build may run or modify contents in this directory,
+                                                         posing security risks.
+
+                                                     Yes, proceed                 y
+                                                     No, quit                     n
+   ...
+                                                                           Grok Build  1.0.25 [stable]
+
+CONFIRMS: --always-approve does NOT suppress the project-content trust dialog.
+
+## Same fresh git project shape, launched `grok --trust --always-approve`
+Command: tmux new-session ... -c <fresh-git-project-with-AGENTS.md> "grok --trust --always-approve"
+
+Rendered pane (captured without sending any keys):
+
+   master /tmp/grok-trust-verify.XXXXXX/proj-trust
+   ...
+   (idle composer reached directly, no trust dialog)
+   ...
+   Grok 4.6 (high) · always-approve
+
+CONFIRMS: --trust suppresses the dialog and the worker reaches the idle composer.
+
+Both tmux sessions were terminated (quit/kill-server) without accepting the
+"Yes, proceed" dialog option, and the throwaway project directories were removed
+after capture. Grok's managed trust store was not inspected or modified by hand.
