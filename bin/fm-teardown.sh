@@ -1564,6 +1564,8 @@ backlog_refresh_reminder() {
   fi
   if [ "$BACKLOG_CLOSED" = 1 ] && [ "$BACKLOG_TRANSITION" = retain ]; then
     printf '%s\n' "Backlog: $ID stays open in $backlog_display, still held for the captain with its deliverable recorded. Relay the question and close it only with bin/fm-captain-hold.sh answer."
+  elif [ "$BACKLOG_CLOSED" = 1 ] && [ "${FM_BACKLOG_CLOSE_ARCHIVED:-0}" = 1 ]; then
+    printf '%s\n' "Backlog: $ID was already completed and archived out of $backlog_display, so its original outcome stands there untouched${FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED:+ and the generated $FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED was not reapplied to that archived record}. Run bin/fm-tasks-axi.sh ready for dependency-cleared candidates, check date gates, and dispatch only work whose blockers are gone and date is due."
   elif [ "$BACKLOG_CLOSED" = 1 ]; then
     printf '%s\n' "Backlog: $ID is closed in $backlog_display. Run bin/fm-tasks-axi.sh ready for dependency-cleared candidates, check date gates, and dispatch only work whose blockers are gone and date is due."
   else

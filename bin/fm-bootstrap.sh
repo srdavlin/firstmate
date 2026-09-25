@@ -1308,10 +1308,10 @@ backlog_record_reconcile() {
           echo "BOOTSTRAP_INFO: finished the interrupted cleanup for $label; the captain had already answered its call"
           ;;
         closed_archived)
-          echo "BOOTSTRAP_INFO: finished the interrupted cleanup for $label; its backlog item was already archived"
+          echo "BOOTSTRAP_INFO: finished the interrupted cleanup for $label; its backlog item was already completed and archived, so its original outcome stands${FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED:+ and the generated $FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED was not reapplied to that archived record}"
           ;;
         closed_archived_incomplete)
-          echo "BOOTSTRAP_INFO: finished the interrupted cleanup for $label against its already-archived backlog item; its endpoint or local copy may remain and should be reconciled"
+          echo "BOOTSTRAP_INFO: finished the interrupted cleanup for $label against its already-archived backlog item, whose original outcome stands${FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED:+ without the generated $FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED}; its endpoint or local copy may remain and should be reconciled"
           ;;
       esac
     else

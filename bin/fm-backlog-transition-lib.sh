@@ -75,6 +75,18 @@ FM_BACKLOG_ROW_HOLD_KIND=
 # fm_backlog_row_archived, not because nothing was ever recorded.
 # shellcheck disable=SC2034 # Output global, read by the sourcing caller.
 FM_BACKLOG_CLOSE_REPLAY_RESULT=
+# Set by fm_backlog_row_archived: the single archive entry that proved the row
+# was already completed and retired, so a caller can read what that entry
+# already records without scanning the archive again.
+FM_BACKLOG_ROW_ARCHIVED_ENTRY=
+# Set by fm_backlog_close_transition: 1 when the close was satisfied by an
+# already-archived completion rather than by a write to the active backlog, and
+# the completion links that archived record therefore did not take, so callers
+# report what actually happened instead of claiming a fresh close.
+# shellcheck disable=SC2034 # Output global, read by the sourcing caller.
+FM_BACKLOG_CLOSE_ARCHIVED=0
+# shellcheck disable=SC2034 # Output global, read by the sourcing caller.
+FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED=
 
 # Bounded execution is fm-timeout-lib.sh's alone; source it rather than
 # re-deriving a deadline here. It is stateless, so the memoisation reason this
@@ -549,11 +561,16 @@ fm_backlog_row_probe() {  # <data-dir> <id>
 # beside it, and neither `add`/`start`/`done` nor any other supported surface
 # can put it back. This only ever READS that archive; it never writes it, so a
 # genuinely finished-and-archived row is never re-mutated, only recognized.
-# Exactly one bullet naming the id is required: a missing or unreadable
-# archive, or more than one match, both refuse rather than guess, so a
-# corrupt or ambiguous archive can never stand in for a real completion.
+# The archive is trusted through fm_backlog_record_present, the same home-bound
+# guard every other record this library reads passes, so an archive symlinked at
+# another home's (or the code root's) forked copy is refused rather than accepted
+# as proof this home completed the row. Exactly one bullet naming the id is
+# required: a missing or unreadable archive, or more than one match, both refuse
+# rather than guess, so a corrupt or ambiguous archive can never stand in for a
+# real completion.
 fm_backlog_row_archived() {  # <data-dir> <id>
-  local data=$1 id=$2 archive backend root matches
+  local data=$1 id=$2 archive backend root scan matches
+  FM_BACKLOG_ROW_ARCHIVED_ENTRY=
   root=$(fm_backlog_root "$data") || return 1
   backend=$(fm_tasks_axi_backend "$root" 2>&1) || {
     FM_BACKLOG_TRANSITION_ERROR="$backend"
@@ -564,16 +581,20 @@ fm_backlog_row_archived() {  # <data-dir> <id>
     return 1
   fi
   archive=$(fm_backlog_archive_file "$data") || return 1
-  if [ ! -f "$archive" ] || [ ! -r "$archive" ]; then
-    FM_BACKLOG_TRANSITION_ERROR="task $id is absent from the active backlog and its archive $archive is missing or unreadable"
+  if ! fm_backlog_record_present "$archive" "backlog archive" "$data"; then
+    FM_BACKLOG_TRANSITION_ERROR="task $id is absent from the active backlog and $FM_BACKLOG_TRANSITION_ERROR"
     return 1
   fi
-  matches=$(LC_ALL=C awk -v id="$id" '
-    index($0, "- [x] " id " - ") == 1 { count++ }
-    END { print count + 0 }
-  ' "$archive" 2>/dev/null) || matches=
+  scan=$(LC_ALL=C awk -v id="$id" '
+    index($0, "- [x] " id " - ") == 1 { count++; entry = $0 }
+    END { print count + 0; if (count == 1) print entry }
+  ' "$archive" 2>/dev/null) || scan=
+  matches=${scan%%$'\n'*}
   case "$matches" in
-    1) return 0 ;;
+    1)
+      FM_BACKLOG_ROW_ARCHIVED_ENTRY=${scan#*$'\n'}
+      return 0
+      ;;
     ''|*[!0-9]*)
       FM_BACKLOG_TRANSITION_ERROR="task $id could not be verified against its archive $archive"
       return 1
@@ -587,6 +608,44 @@ fm_backlog_row_archived() {  # <data-dir> <id>
       return 1
       ;;
   esac
+}
+
+# An archived record is read, never rewritten, so a close that still carries
+# delivery evidence must not be satisfied by the archive unless that evidence is
+# already preserved there. tasks-axi records `--pr`/`--report` on the row itself,
+# so the archived entry carries the artifact it was completed with: an entry that
+# already names this close's artifact preserves it and the close proceeds, while
+# an artifact the archived outcome never recorded refuses here, keeping the
+# pending close (and its arguments) for a human to reconcile rather than
+# discarding delivery evidence silently.
+# A `--note` is different: teardown synthesizes "local main" from the record's
+# own metadata rather than observing it, so it is no proof of delivery and must
+# never be used to overwrite a failed or superseded archived outcome. It is
+# reported as not reapplied instead of refusing the close.
+fm_backlog_archived_close_evidence() {  # <id> <archive-entry> [flag...]
+  local id=$1 entry=$2 arg previous_arg='' artifact
+  shift 2
+  FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED=
+  for arg in "$@"; do
+    case "$previous_arg" in
+      --pr|--report)
+        artifact=report
+        [ "$previous_arg" != --pr ] || artifact=PR
+        case "$entry" in
+          *"$arg"*) ;;
+          *)
+            FM_BACKLOG_TRANSITION_ERROR="task $id is already archived with an outcome that does not record the $artifact $arg this close carries, and an archived record is never rewritten; record that $artifact in the archive entry by hand, then re-run"
+            return 1
+            ;;
+        esac
+        ;;
+      --note)
+        FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED="${FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED:+$FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED; }note \"$arg\""
+        ;;
+    esac
+    previous_arg=$arg
+  done
+  return 0
 }
 
 # Run one tasks-axi mutation against <home>'s backlog, capturing its first
@@ -934,21 +993,31 @@ fm_backlog_dispatch_rollback() {
 }
 
 fm_backlog_close_transition() {
-  local meta=$1 marker=$2 data=$3 id=$4 state=$5
+  local meta=$1 marker=$2 data=$3 id=$4 state=$5 archived=0
   shift 5
-  [ -z "$meta" ] || fm_backlog_record_remove "$meta" "task record" "$state" || return 1
-  if fm_backlog_row_probe "$data" "$id"; then
-    fm_backlog_done "$data" "$id" "$@" || return 1
-  elif [ "$FM_BACKLOG_ROW_RESULT" = not_found ]; then
+  FM_BACKLOG_CLOSE_ARCHIVED=0
+  FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED=
+  # The row is read before the record is removed, so every refusal below - an
+  # unreadable row, a row absent everywhere, delivery evidence the archive never
+  # recorded - leaves both durable records intact for the next replay.
+  if ! fm_backlog_row_probe "$data" "$id"; then
+    if [ "$FM_BACKLOG_ROW_RESULT" != not_found ]; then
+      FM_BACKLOG_TRANSITION_ERROR=$FM_BACKLOG_ROW_ERROR
+      return 1
+    fi
     # The row is not in the active backlog because it was already retired
     # there, not because this close has anything left to do: verify that
     # before treating the close as satisfied, so a row that is merely missing
     # cannot be waved through as though it were archived.
     fm_backlog_row_archived "$data" "$id" || return 1
-  else
-    FM_BACKLOG_TRANSITION_ERROR=$FM_BACKLOG_ROW_ERROR
-    return 1
+    fm_backlog_archived_close_evidence "$id" "$FM_BACKLOG_ROW_ARCHIVED_ENTRY" "$@" || return 1
+    archived=1
   fi
+  [ -z "$meta" ] || fm_backlog_record_remove "$meta" "task record" "$state" || return 1
+  if [ "$archived" = 0 ]; then
+    fm_backlog_done "$data" "$id" "$@" || return 1
+  fi
+  FM_BACKLOG_CLOSE_ARCHIVED=$archived
   fm_backlog_record_remove "$marker" "pending-close record" "$state"
 }
 
@@ -1236,7 +1305,7 @@ fm_backlog_close_marker_clear() {  # <state-dir> <id>
 fm_backlog_close_marker_replay() {  # <state-dir> <marker-path> <authorized-data-dir>
   local state=$1 marker=$2 marker_name expected_id
   local id data marker_spawn_gen meta meta_spawn_gen row_state cleanup_incomplete mode
-  local args=() mode_flags=()
+  local args=() mode_flags=() archived_suffix=
   FM_BACKLOG_CLOSE_REPLAY_RESULT=noop
   fm_backlog_directory_present "$state" "state directory" || return 1
   [ -e "$marker" ] || [ -L "$marker" ] || return 0
@@ -1310,15 +1379,19 @@ fm_backlog_close_marker_replay() {  # <state-dir> <marker-path> <authorized-data
       ;;
     '')
       # The row is absent from the active backlog for one of two reasons: it
-      # was already retired into the archive (verify and finish the close), or
-      # it is genuinely missing (refuse and keep the marker for investigation
-      # rather than silently discarding recoverable completion evidence).
-      if fm_backlog_row_archived "$data" "$id"; then
-        fm_backlog_close_marker_remove "$marker" "$state" || return 1
+      # was already retired into the archive, or it is genuinely missing. The
+      # close transition owns that distinction (and the delivery evidence an
+      # archived outcome must already preserve); a refusal keeps the marker for
+      # investigation rather than silently discarding recoverable completion
+      # evidence.
+      if fm_backlog_atomic_transition close '' "$marker" "$data" "$id" "$state" \
+          "${args[@]+"${args[@]}"}"; then
+        archived_suffix=
+        [ "$FM_BACKLOG_CLOSE_ARCHIVED" != 1 ] || archived_suffix=_archived
         if [ "$cleanup_incomplete" = 1 ]; then
-          FM_BACKLOG_CLOSE_REPLAY_RESULT=closed_archived_incomplete
+          FM_BACKLOG_CLOSE_REPLAY_RESULT=closed${archived_suffix}_incomplete
         else
-          FM_BACKLOG_CLOSE_REPLAY_RESULT=closed_archived
+          FM_BACKLOG_CLOSE_REPLAY_RESULT=closed$archived_suffix
         fi
         return 0
       fi

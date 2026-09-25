@@ -1919,6 +1919,17 @@ test_completion_closes_a_legacy_record_whose_row_is_already_archived() {
     || fail "teardown resurrected an archived row into the active backlog: $(row_state "$case_dir" "$id")"
   [ "$(grep -c -F -- "- [x] $id - " "$archive")" = 1 ] \
     || fail "teardown altered or duplicated the archived record for $id"
+  assert_no_grep "$id" "$(backlog_of "$case_dir")" \
+    "teardown wrote the archived id back into the active backlog"
+  assert_contains "$out" "already completed and archived" \
+    "teardown did not report that the completion was already archived: $out"
+  assert_not_contains "$out" "is closed in" \
+    "teardown claimed a fresh close in the active backlog it never wrote: $out"
+  # The local-main note is synthesized from the record's own metadata, so it is
+  # no proof of delivery and never overwrites the archived outcome; teardown
+  # must say so rather than drop it silently.
+  assert_contains "$out" "was not reapplied" \
+    "teardown silently discarded the generated note it did not apply: $out"
   pass "completion closes an obsolete runtime record whose backlog row was already archived"
 }
 
@@ -2162,6 +2173,82 @@ test_recovery_refuses_a_pending_close_absent_from_backlog_and_archive() {
   assert_contains "$out" "absent from both the active backlog and its archive" \
     "recovery did not explain why it refused the vanished row: $out"
   pass "recovery refuses, rather than silently drops, a close whose row is absent everywhere"
+}
+
+# An archived record is read, never rewritten, so delivery evidence the archive
+# does not already record cannot be satisfied by it: the close refuses and keeps
+# both the marker and the PR it carries for a human to reconcile.
+test_recovery_refuses_an_archived_close_carrying_unrecorded_delivery_evidence() {
+  local case_dir id archive marker out
+  id=atomic-heal-archived-pr-b9
+  case_dir=$(make_home heal-archived-pr)
+  archive=$(archive_of "$case_dir")
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived-pr\narg=--pr\narg=https://github.com/example/repo/pull/77\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery discarded a pending close whose PR the archive never recorded"
+  assert_contains "$out" "does not record the PR https://github.com/example/repo/pull/77" \
+    "recovery did not name the delivery evidence it refused to drop: $out"
+  assert_no_grep 'https://github.com/example/repo/pull/77' "$archive" \
+    "recovery rewrote the archived record to carry a new PR"
+  assert_no_grep "$id" "$(backlog_of "$case_dir")" \
+    "recovery resurrected the archived row into the active backlog"
+  pass "recovery refuses an archived close whose delivery evidence the archive never recorded"
+}
+
+# The same archived close, with the PR the archive already records: nothing is
+# lost, so the historical close still completes.
+test_recovery_finishes_an_archived_close_whose_evidence_the_archive_records() {
+  local case_dir id archive marker out
+  id=atomic-heal-archived-same-pr-b9
+  case_dir=$(make_home heal-archived-same-pr)
+  archive=$(archive_of "$case_dir")
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --pr https://github.com/example/repo/pull/78 \
+    --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived-same-pr\narg=--pr\narg=https://github.com/example/repo/pull/78\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_absent "$marker" \
+    "recovery kept a pending close whose PR the archive already records: $out"
+  assert_contains "$out" "already completed and archived" \
+    "recovery did not report the archived completion it finished against: $out"
+  assert_grep 'https://github.com/example/repo/pull/78' "$archive" \
+    "recovery altered the archived record's own delivery evidence"
+  pass "recovery finishes an archived close whose delivery evidence the archive already records"
+}
+
+# The archive is proof only when it belongs to this home: a forked copy reached
+# through a symlink out of the data directory cannot stand in for it.
+test_recovery_refuses_an_archive_resolving_outside_the_home() {
+  local case_dir id home marker foreign out
+  id=atomic-heal-archive-symlink-b9
+  case_dir=$(make_home heal-archive-symlink)
+  home=$(home_of "$case_dir")
+  foreign="$case_dir/foreign-done-archive.md"
+  printf '%s\n' '## Archived 2026-08-01' \
+    "- [x] $id - archived somewhere else (kind: ship) (done 2026-08-01)" > "$foreign"
+  ln -s "$foreign" "$(archive_of "$case_dir")"
+  marker="$home/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archive-symlink\n' "$id" "$home/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery accepted a foreign archive as proof this home completed the row"
+  assert_contains "$out" "backlog archive resolves outside its authorized directory" \
+    "recovery did not report the out-of-home archive it refused: $out"
+  pass "recovery refuses an archive that resolves outside the home's data directory"
 }
 
 test_recovery_refuses_an_ambiguous_archive_match() {
@@ -3196,6 +3283,9 @@ test_recovery_replays_a_close_an_interrupted_cleanup_left_open
 test_recovery_backfills_a_recorded_link_on_an_already_done_item
 test_recovery_finishes_a_close_left_open_by_an_already_archived_row
 test_recovery_refuses_a_pending_close_absent_from_backlog_and_archive
+test_recovery_refuses_an_archived_close_carrying_unrecorded_delivery_evidence
+test_recovery_finishes_an_archived_close_whose_evidence_the_archive_records
+test_recovery_refuses_an_archive_resolving_outside_the_home
 test_recovery_refuses_an_ambiguous_archive_match
 test_recovery_preserves_a_close_when_the_backlog_cannot_be_read
 test_recovery_retry_preserves_incomplete_cleanup_warning
