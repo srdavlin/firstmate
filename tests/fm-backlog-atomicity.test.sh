@@ -106,6 +106,7 @@ SH
 
 home_of() { printf '%s/home\n' "$1"; }
 backlog_of() { printf '%s/home/data/backlog.md\n' "$1"; }
+archive_of() { printf '%s/home/data/done-archive.md\n' "$1"; }
 
 add_item() {  # <case-dir> <id> [kind]
   tasks-axi add "$2" "item for $2" --kind "${3:-ship}" --file "$(backlog_of "$1")" >/dev/null
@@ -118,6 +119,16 @@ start_item() {  # <case-dir> <id>
 row_state() {  # <case-dir> <id>
   tasks-axi show "$2" --file "$(backlog_of "$1")" 2>/dev/null |
     sed -n 's/^  state: *//p' | head -1
+}
+
+# tasks-axi resolves its archive location from its own `.tasks.toml`, found by
+# searching the process's CWD rather than the `--file` path's directory
+# (exactly why fm_backlog_tasks_axi_addressing always `cd`s into the addressing
+# root before invoking it). A bare `--file` prune from the suite's own working
+# directory would archive into firstmate's own repo-root `.tasks.toml` instead
+# of the fixture's, so this always runs from the home the fixture owns.
+prune_done_to_archive() {  # <case-dir>
+  ( cd "$(home_of "$1")" && tasks-axi prune --keep 0 --state "done" --file "$(backlog_of "$1")" >/dev/null )
 }
 
 configure_env_backend_tasks_axi() {  # <case-dir>
@@ -1882,6 +1893,67 @@ test_completion_fails_when_its_close_marker_cannot_be_removed() {
   pass "completion reports failure until its durable close marker is removed"
 }
 
+# An obsolete runtime record for a task whose backlog row was already retired
+# into the archive (tasks-axi prune, AGENTS.md section 10's done_keep) must
+# still close cleanly instead of the row's active-backlog absence failing the
+# transition, as long as the archive actually names it exactly once; compare
+# against the ordinary still-Done row in
+# test_completion_closes_a_local_only_ship_before_reporting_success.
+test_completion_closes_a_legacy_record_whose_row_is_already_archived() {
+  local case_dir id archive out
+  id=atomic-close-archived-b9
+  case_dir=$(make_home close-archived)
+  archive=$(archive_of "$case_dir")
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  write_task_meta "$case_dir" "$id" ship local-only "spawn_gen=spawn-close-archived"
+
+  out=$(run_teardown "$case_dir" "$id") || fail "teardown failed to close an already-archived row: $out"
+  assert_absent "$(home_of "$case_dir")/state/$id.meta" \
+    "teardown left the obsolete runtime record behind"
+  assert_absent "$(home_of "$case_dir")/state/$id.backlog-close" \
+    "teardown left a pending close open for an already-archived row"
+  [ "$(row_state "$case_dir" "$id")" = "" ] \
+    || fail "teardown resurrected an archived row into the active backlog: $(row_state "$case_dir" "$id")"
+  [ "$(grep -c -F -- "- [x] $id - " "$archive")" = 1 ] \
+    || fail "teardown altered or duplicated the archived record for $id"
+  assert_no_grep "$id" "$(backlog_of "$case_dir")" \
+    "teardown wrote the archived id back into the active backlog"
+  assert_contains "$out" "already completed and archived" \
+    "teardown did not report that the completion was already archived: $out"
+  assert_not_contains "$out" "is closed in" \
+    "teardown claimed a fresh close in the active backlog it never wrote: $out"
+  # The local-main note is synthesized from the record's own metadata, so it is
+  # no proof of delivery and never overwrites the archived outcome; teardown
+  # must say so rather than drop it silently.
+  assert_contains "$out" "was not reapplied" \
+    "teardown silently discarded the generated note it did not apply: $out"
+  pass "completion closes an obsolete runtime record whose backlog row was already archived"
+}
+
+test_completion_refuses_a_close_absent_from_backlog_and_archive() {
+  local case_dir id out rc=0
+  id=atomic-close-vanished-b9
+  case_dir=$(make_home close-vanished)
+  write_task_meta "$case_dir" "$id" ship local-only "spawn_gen=spawn-close-vanished"
+  # An archive that exists (with an unrelated entry) but never named this id:
+  # a genuinely vanished row, not an archived one, so the close must refuse
+  # rather than guess.
+  mkdir -p "$(home_of "$case_dir")/data"
+  printf '\n## Archived 2026-08-01\n- [x] unrelated-item - unrelated (kind: ship) (done 2026-08-01)\n' \
+    > "$(archive_of "$case_dir")"
+
+  out=$(run_teardown "$case_dir" "$id") || rc=$?
+  [ "$rc" -ne 0 ] || fail "teardown closed a row absent from both the backlog and its archive"
+  assert_contains "$out" "absent from both the active backlog and its archive" \
+    "teardown did not explain why it refused the vanished row: $out"
+  assert_present "$(home_of "$case_dir")/state/$id.backlog-close" \
+    "teardown discarded the pending close instead of leaving it for recovery"
+  pass "completion refuses to close a row absent from both the backlog and its archive"
+}
+
 # --- same-home recovery -----------------------------------------------------
 
 test_recovery_retries_when_a_close_marker_cannot_be_removed() {
@@ -2047,6 +2119,220 @@ test_recovery_backfills_a_recorded_link_on_an_already_done_item() {
     "recovery discarded the recorded link because the item was already Done"
   assert_absent "$marker" "recovery retained an applied completion-link marker"
   pass "recovery backfills recorded links onto already Done items"
+}
+
+# Reproduces the interrupted-cleanup handoff an archived Done row leaves
+# behind: an earlier close already removed the task record and left this
+# pending-close marker, but its row is no longer in the active backlog because
+# it was archived in the meantime. Recovery must verify that against the
+# archive and finish the close, not silently discard the marker as though the
+# row had simply vanished.
+test_recovery_finishes_a_close_left_open_by_an_already_archived_row() {
+  local case_dir id archive marker out
+  id=atomic-heal-archived-b9
+  case_dir=$(make_home heal-archived)
+  archive=$(archive_of "$case_dir")
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+  # No state/$id.meta: an earlier interrupted close already removed it before
+  # its own backlog mutation hit the row's active-backlog absence.
+
+  out=$(run_bootstrap "$case_dir")
+  assert_absent "$marker" \
+    "recovery left a pending close open for a row that was already archived"
+  assert_not_contains "$out" "recorded backlog close could not be replayed" \
+    "recovery still reports the archived row as unreplayable: $out"
+  [ "$(row_state "$case_dir" "$id")" = "" ] \
+    || fail "recovery resurrected an archived row: $(row_state "$case_dir" "$id")"
+  [ "$(grep -c -F -- "- [x] $id - " "$archive")" = 1 ] \
+    || fail "recovery altered or duplicated the archived record for $id"
+  pass "recovery finishes a pending close left open by a row that was already archived"
+}
+
+# The same archived absence under a RECORDED RETENTION is a different verdict: a
+# retention waits on a captain answer, and an archived Done entry proves only
+# that someone completed the row, never that the question was answered. Recovery
+# must refuse precisely and keep the marker with the delivery evidence it
+# carries, instead of replaying it as an archived close.
+test_recovery_refuses_a_retention_whose_row_is_already_archived() {
+  local case_dir id archive marker out
+  id=atomic-heal-archived-retain-b9
+  case_dir=$(make_home heal-archived-retain)
+  archive=$(archive_of "$case_dir")
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --pr https://github.com/example/repo/pull/91 \
+    --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived-retain\nmode=retain\narg=--pr\narg=https://github.com/example/repo/pull/91\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery discarded a recorded retention whose row was archived: $out"
+  assert_grep 'https://github.com/example/repo/pull/91' "$marker" \
+    "recovery dropped the delivery evidence the retention carried"
+  assert_contains "$out" "recorded retention but is absent from the active backlog" \
+    "recovery did not explain why it refused the archived retention: $out"
+  assert_not_contains "$out" "already completed and archived" \
+    "recovery reported a retention as an archived close: $out"
+  [ "$(row_state "$case_dir" "$id")" = "" ] \
+    || fail "recovery resurrected an archived row for a retention: $(row_state "$case_dir" "$id")"
+  [ "$(grep -c -F -- "- [x] $id - " "$archive")" = 1 ] \
+    || fail "recovery altered or duplicated the archived record for $id"
+  pass "recovery refuses a recorded retention whose backlog row was already archived"
+}
+
+test_recovery_refuses_a_pending_close_absent_from_backlog_and_archive() {
+  local case_dir id marker out
+  id=atomic-heal-vanished-b9
+  case_dir=$(make_home heal-vanished)
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-vanished\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+  # An archive that exists (with an unrelated entry) but never named this id:
+  # a genuinely vanished row.
+  mkdir -p "$(home_of "$case_dir")/data"
+  printf '\n## Archived 2026-08-01\n- [x] unrelated-item - unrelated (kind: ship) (done 2026-08-01)\n' \
+    > "$(archive_of "$case_dir")"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery discarded a pending close for a row absent from both the backlog and its archive"
+  assert_contains "$out" "absent from both the active backlog and its archive" \
+    "recovery did not explain why it refused the vanished row: $out"
+  pass "recovery refuses, rather than silently drops, a close whose row is absent everywhere"
+}
+
+# An archived record is read, never rewritten, so delivery evidence the archive
+# does not already record cannot be satisfied by it: the close refuses and keeps
+# both the marker and the PR it carries for a human to reconcile.
+test_recovery_refuses_an_archived_close_carrying_unrecorded_delivery_evidence() {
+  local case_dir id archive marker out
+  id=atomic-heal-archived-pr-b9
+  case_dir=$(make_home heal-archived-pr)
+  archive=$(archive_of "$case_dir")
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived-pr\narg=--pr\narg=https://github.com/example/repo/pull/77\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery discarded a pending close whose PR the archive never recorded"
+  assert_contains "$out" "does not record the PR https://github.com/example/repo/pull/77" \
+    "recovery did not name the delivery evidence it refused to drop: $out"
+  assert_no_grep 'https://github.com/example/repo/pull/77' "$archive" \
+    "recovery rewrote the archived record to carry a new PR"
+  assert_no_grep "$id" "$(backlog_of "$case_dir")" \
+    "recovery resurrected the archived row into the active backlog"
+  pass "recovery refuses an archived close whose delivery evidence the archive never recorded"
+}
+
+# A link the archive records only as the prefix of a LONGER link (pull/1 inside
+# pull/10) is a different artifact, so it is unpreserved evidence and must refuse
+# exactly like a link the archive never recorded at all.
+test_recovery_refuses_an_archived_close_whose_pr_only_prefixes_the_archived_one() {
+  local case_dir id marker out
+  id=atomic-heal-archived-prefix-pr-b9
+  case_dir=$(make_home heal-archived-prefix-pr)
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --pr https://github.com/example/repo/pull/10 \
+    --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived-prefix-pr\narg=--pr\narg=https://github.com/example/repo/pull/1\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery accepted an archived PR that merely prefixes this close's PR"
+  assert_contains "$out" "does not record the PR https://github.com/example/repo/pull/1" \
+    "recovery did not name the delivery evidence it refused to drop: $out"
+  assert_grep 'https://github.com/example/repo/pull/10' "$(archive_of "$case_dir")" \
+    "recovery altered the archived record's own delivery evidence"
+  pass "recovery refuses an archived close whose PR only prefixes the archived one"
+}
+
+# The same archived close, with the PR the archive already records: nothing is
+# lost, so the historical close still completes.
+test_recovery_finishes_an_archived_close_whose_evidence_the_archive_records() {
+  local case_dir id archive marker out
+  id=atomic-heal-archived-same-pr-b9
+  case_dir=$(make_home heal-archived-same-pr)
+  archive=$(archive_of "$case_dir")
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --pr https://github.com/example/repo/pull/78 \
+    --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived-same-pr\narg=--pr\narg=https://github.com/example/repo/pull/78\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_absent "$marker" \
+    "recovery kept a pending close whose PR the archive already records: $out"
+  assert_contains "$out" "already completed and archived" \
+    "recovery did not report the archived completion it finished against: $out"
+  assert_grep 'https://github.com/example/repo/pull/78' "$archive" \
+    "recovery altered the archived record's own delivery evidence"
+  pass "recovery finishes an archived close whose delivery evidence the archive already records"
+}
+
+# The archive is proof only when it belongs to this home: a forked copy reached
+# through a symlink out of the data directory cannot stand in for it.
+test_recovery_refuses_an_archive_resolving_outside_the_home() {
+  local case_dir id home marker foreign out
+  id=atomic-heal-archive-symlink-b9
+  case_dir=$(make_home heal-archive-symlink)
+  home=$(home_of "$case_dir")
+  foreign="$case_dir/foreign-done-archive.md"
+  printf '%s\n' '## Archived 2026-08-01' \
+    "- [x] $id - archived somewhere else (kind: ship) (done 2026-08-01)" > "$foreign"
+  ln -s "$foreign" "$(archive_of "$case_dir")"
+  marker="$home/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archive-symlink\n' "$id" "$home/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery accepted a foreign archive as proof this home completed the row"
+  assert_contains "$out" "backlog archive resolves outside its authorized directory" \
+    "recovery did not report the out-of-home archive it refused: $out"
+  pass "recovery refuses an archive that resolves outside the home's data directory"
+}
+
+test_recovery_refuses_an_ambiguous_archive_match() {
+  local case_dir id home archive marker out
+  id=atomic-heal-ambiguous-b9
+  case_dir=$(make_home heal-ambiguous)
+  home=$(home_of "$case_dir")
+  archive="$home/data/done-archive.md"
+  printf '%s\n' \
+    '## Archived 2026-08-01' \
+    "- [x] $id - first archived attempt (kind: ship) (done 2026-08-01)" \
+    '## Archived 2026-08-02' \
+    "- [x] $id - second archived attempt (kind: ship) (done 2026-08-02)" \
+    > "$archive"
+  marker="$home/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-ambiguous\n' "$id" "$home/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery resolved an ambiguous archive match instead of refusing"
+  assert_contains "$out" "ambiguous archive identity" \
+    "recovery did not report the ambiguous archive match: $out"
+  pass "recovery refuses a pending close whose archive identity is ambiguous"
 }
 
 test_recovery_preserves_a_close_when_the_backlog_cannot_be_read() {
@@ -3046,6 +3332,8 @@ test_completion_fails_loudly_and_records_the_close_it_still_owes
 test_interrupted_destructive_cleanup_leaves_a_recoverable_close
 test_completion_refuses_a_close_target_symlinked_to_a_directory
 test_completion_fails_when_its_close_marker_cannot_be_removed
+test_completion_closes_a_legacy_record_whose_row_is_already_archived
+test_completion_refuses_a_close_absent_from_backlog_and_archive
 test_recovery_retries_when_a_close_marker_cannot_be_removed
 test_recovery_reports_an_owned_row_read_failure
 test_orca_cleanup_recovery_never_transitions_the_backlog
@@ -3054,6 +3342,14 @@ test_recovery_rejects_an_internal_worker_record_symlink
 test_recovery_ignores_a_symlinked_worker_record
 test_recovery_replays_a_close_an_interrupted_cleanup_left_open
 test_recovery_backfills_a_recorded_link_on_an_already_done_item
+test_recovery_finishes_a_close_left_open_by_an_already_archived_row
+test_recovery_refuses_a_retention_whose_row_is_already_archived
+test_recovery_refuses_a_pending_close_absent_from_backlog_and_archive
+test_recovery_refuses_an_archived_close_carrying_unrecorded_delivery_evidence
+test_recovery_refuses_an_archived_close_whose_pr_only_prefixes_the_archived_one
+test_recovery_finishes_an_archived_close_whose_evidence_the_archive_records
+test_recovery_refuses_an_archive_resolving_outside_the_home
+test_recovery_refuses_an_ambiguous_archive_match
 test_recovery_preserves_a_close_when_the_backlog_cannot_be_read
 test_recovery_retry_preserves_incomplete_cleanup_warning
 test_recovery_finishes_a_close_for_the_same_meta_incarnation
