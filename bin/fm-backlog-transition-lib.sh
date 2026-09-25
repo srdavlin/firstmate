@@ -1402,6 +1402,16 @@ fm_backlog_close_marker_replay() {  # <state-dir> <marker-path> <authorized-data
       return 1
       ;;
     '')
+      # A recorded retention needs a live row to reopen and a captain answer to
+      # close it: an absent row offers neither, and an archived Done entry is
+      # not that answer - it proves only that someone completed the row, never
+      # that the question this retention recorded was answered. Refuse, keeping
+      # the marker and its arguments, instead of replaying the retention as a
+      # close or dropping it as stale.
+      if [ "$mode" = retain ]; then
+        FM_BACKLOG_TRANSITION_ERROR="task $id has a recorded retention but is absent from the active backlog, so the captain's answer cannot be confirmed; reconcile the retention by hand, then re-run"
+        return 1
+      fi
       # The row is absent from the active backlog for one of two reasons: it
       # was already retired into the archive, or it is genuinely missing. The
       # close transition owns that distinction (and the delivery evidence an

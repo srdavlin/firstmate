@@ -2154,6 +2154,41 @@ test_recovery_finishes_a_close_left_open_by_an_already_archived_row() {
   pass "recovery finishes a pending close left open by a row that was already archived"
 }
 
+# The same archived absence under a RECORDED RETENTION is a different verdict: a
+# retention waits on a captain answer, and an archived Done entry proves only
+# that someone completed the row, never that the question was answered. Recovery
+# must refuse precisely and keep the marker with the delivery evidence it
+# carries, instead of replaying it as an archived close.
+test_recovery_refuses_a_retention_whose_row_is_already_archived() {
+  local case_dir id archive marker out
+  id=atomic-heal-archived-retain-b9
+  case_dir=$(make_home heal-archived-retain)
+  archive=$(archive_of "$case_dir")
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --pr https://github.com/example/repo/pull/91 \
+    --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived-retain\nmode=retain\narg=--pr\narg=https://github.com/example/repo/pull/91\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery discarded a recorded retention whose row was archived: $out"
+  assert_grep 'https://github.com/example/repo/pull/91' "$marker" \
+    "recovery dropped the delivery evidence the retention carried"
+  assert_contains "$out" "recorded retention but is absent from the active backlog" \
+    "recovery did not explain why it refused the archived retention: $out"
+  assert_not_contains "$out" "already completed and archived" \
+    "recovery reported a retention as an archived close: $out"
+  [ "$(row_state "$case_dir" "$id")" = "" ] \
+    || fail "recovery resurrected an archived row for a retention: $(row_state "$case_dir" "$id")"
+  [ "$(grep -c -F -- "- [x] $id - " "$archive")" = 1 ] \
+    || fail "recovery altered or duplicated the archived record for $id"
+  pass "recovery refuses a recorded retention whose backlog row was already archived"
+}
+
 test_recovery_refuses_a_pending_close_absent_from_backlog_and_archive() {
   local case_dir id marker out
   id=atomic-heal-vanished-b9
@@ -3308,6 +3343,7 @@ test_recovery_ignores_a_symlinked_worker_record
 test_recovery_replays_a_close_an_interrupted_cleanup_left_open
 test_recovery_backfills_a_recorded_link_on_an_already_done_item
 test_recovery_finishes_a_close_left_open_by_an_already_archived_row
+test_recovery_refuses_a_retention_whose_row_is_already_archived
 test_recovery_refuses_a_pending_close_absent_from_backlog_and_archive
 test_recovery_refuses_an_archived_close_carrying_unrecorded_delivery_evidence
 test_recovery_refuses_an_archived_close_whose_pr_only_prefixes_the_archived_one
