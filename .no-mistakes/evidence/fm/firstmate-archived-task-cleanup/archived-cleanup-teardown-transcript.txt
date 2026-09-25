@@ -1,0 +1,26 @@
+
+========== S1 teardown closes an obsolete runtime record whose row was already archived (the Odin case) ==========
+--- id occurrences in active backlog before: 0
+--- archive entry before:
+- [x] odin-cluster-infra-google-oidc-live-apply - historical item for odin-cluster-infra-google-oidc-live-apply (kind: ship) (done 2026-09-25)
+--- runtime record before:
+odin-cluster-infra-google-oidc-live-apply.meta
+--- $ bin/fm-teardown.sh odin-cluster-infra-google-oidc-live-apply
+teardown odin-cluster-infra-google-oidc-live-apply complete (window firstmate:fm-odin-cluster-infra-google-oidc-live-apply, worktree /tmp/fm-manual-lab/t1/absent-worktree)
+Backlog: odin-cluster-infra-google-oidc-live-apply was already completed and archived out of /tmp/fm-manual-lab/t1/home/data/backlog.md, so its original outcome stands there untouched and the generated note "local main" was not reapplied to that archived record. Run bin/fm-tasks-axi.sh ready for dependency-cleared candidates, check date gates, and dispatch only work whose blockers are gone and date is due.
+exit=0
+--- state dir after:
+home-summary.json
+terminal-outcomes
+--- archive entry after:
+- [x] odin-cluster-infra-google-oidc-live-apply - historical item for odin-cluster-infra-google-oidc-live-apply (kind: ship) (done 2026-09-25)
+--- id occurrences in active backlog after: 0
+
+========== S2 teardown refuses a row absent from BOTH the active backlog and the archive ==========
+--- $ bin/fm-teardown.sh vanished-record
+error: vanished-record's endpoint and local copy are cleaned up, but its backlog item could not be closed atomically (task vanished-record is absent from both the active backlog and its archive /tmp/fm-manual-lab/t2/home/data/done-archive.md); the pending close is recorded and the next session start retries it
+exit=1
+--- state dir after (pending close kept for recovery):
+terminal-outcomes
+vanished-record.backlog-close
+vanished-record.meta

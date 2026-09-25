@@ -1,0 +1,19 @@
+=== Regression proof: tests/fm-backlog-atomicity.test.sh run against BASE bin/ (739ac6e) ===
+62:not ok - teardown failed to close an already-archived row: error: atomic-close-archived-b9's endpoint and local copy are cleaned up, but its backlog item could not be closed atomically (error: "Task \"atomic-close-archived-b9\" not found in this backlog"); the pending close is recorded and the next session start retries it
+
+=== Same suite against 49941f1 bin/ (before the retain-mode commit 43f8f86) ===
+73:not ok - recovery discarded a recorded retention whose row was archived: BOOTSTRAP_INFO: finished the interrupted cleanup for atomic-heal-archived-retain-b9; its backlog item was already completed and archived, so its original outcome stands
+
+=== Same suite at target 43f8f86 (new archived/retain cases) ===
+62:ok - completion closes an obsolete runtime record whose backlog row was already archived
+63:ok - completion refuses to close a row absent from both the backlog and its archive
+72:ok - recovery finishes a pending close left open by a row that was already archived
+73:ok - recovery refuses a recorded retention whose backlog row was already archived
+74:ok - recovery refuses, rather than silently drops, a close whose row is absent everywhere
+75:ok - recovery refuses an archived close whose delivery evidence the archive never recorded
+76:ok - recovery refuses an archived close whose PR only prefixes the archived one
+77:ok - recovery finishes an archived close whose delivery evidence the archive already records
+78:ok - recovery refuses an archive that resolves outside the home's data directory
+79:ok - recovery refuses a pending close whose archive identity is ambiguous
+
+suite total ok lines at target: 109, failures: 0

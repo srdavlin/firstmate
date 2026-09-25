@@ -1,0 +1,67 @@
+
+========== S1 teardown closes an obsolete record whose row was archived (the Odin case) ==========
+--- active backlog before (grep $ID):
+0
+--- archive entry before:
+- [x] odin-cluster-infra-google-oidc-live-apply - historical item for odin-cluster-infra-google-oidc-live-apply (kind: ship) (done 2026-09-25)
+--- runtime record before:
+odin-cluster-infra-google-oidc-live-apply.meta
+--- $ bin/fm-teardown.sh odin-cluster-infra-google-oidc-live-apply
+error: no-mistakes gate agent must not drive the fleet (NO_MISTAKES_GATE set)
+exit=3
+--- runtime record after:
+1
+--- archive entry after:
+- [x] odin-cluster-infra-google-oidc-live-apply - historical item for odin-cluster-infra-google-oidc-live-apply (kind: ship) (done 2026-09-25)
+--- active backlog after (id occurrences):
+0
+
+========== S2 teardown refuses a row absent from both backlog and archive ==========
+--- $ bin/fm-teardown.sh vanished-record
+error: no-mistakes gate agent must not drive the fleet (NO_MISTAKES_GATE set)
+exit=3
+--- pending close marker kept:
+
+========== S3 session start finishes an interrupted close whose row was archived ==========
+--- $ bin/fm-bootstrap.sh (backlog lines)
+BOOTSTRAP_INFO: finished the interrupted cleanup for odin-cluster-infra-reinitialize-vault; its backlog item was already completed and archived, so its original outcome stands
+--- marker after:
+0
+--- archive untouched:
+- [x] odin-cluster-infra-reinitialize-vault - historical item for odin-cluster-infra-reinitialize-vault (kind: ship) (done 2026-09-25)
+
+========== S4 session start refuses a recorded retention whose row was archived ==========
+--- $ bin/fm-bootstrap.sh (backlog lines)
+BACKLOG_RECONCILE: retained-hold-task: recorded backlog close could not be replayed: task retained-hold-task has a recorded retention but is absent from the active backlog, so the captain's answer cannot be confirmed; reconcile the retention by hand, then re-run
+--- marker kept with its delivery evidence:
+id=retained-hold-task
+data=/tmp/fm-manual-lab/s4/home/data
+spawn_gen=spawn-manual
+mode=retain
+arg=--pr
+arg=https://github.com/example/repo/pull/91
+
+========== S5 session start refuses an archived close carrying unrecorded delivery evidence ==========
+BACKLOG_RECONCILE: unrecorded-pr-task: recorded backlog close could not be replayed: task unrecorded-pr-task is already archived with an outcome that does not record the PR https://github.com/example/repo/pull/77 this close carries, and an archived record is never rewritten; record that PR in the archive entry by hand, then re-run
+--- archive not rewritten:
+- [x] unrecorded-pr-task - historical item for unrecorded-pr-task (kind: ship) (done 2026-09-25)
+
+========== S6 session start refuses a PR that only prefixes the archived one (pull/1 vs pull/10) ==========
+BACKLOG_RECONCILE: prefix-pr-task: recorded backlog close could not be replayed: task prefix-pr-task is already archived with an outcome that does not record the PR https://github.com/example/repo/pull/1 this close carries, and an archived record is never rewritten; record that PR in the archive entry by hand, then re-run
+--- archived PR intact:
+- [x] prefix-pr-task - historical item for prefix-pr-task https://github.com/example/repo/pull/10 (kind: ship) (merged 2026-09-25)
+
+========== S7 session start finishes an archived close whose PR the archive already records ==========
+BOOTSTRAP_INFO: finished the interrupted cleanup for recorded-pr-task; its backlog item was already completed and archived, so its original outcome stands
+--- marker after:
+0
+
+========== S8 session start refuses an archive symlinked outside the home data dir ==========
+BACKLOG_RECONCILE: foreign-archive-task: recorded backlog close could not be replayed: task foreign-archive-task is absent from the active backlog and backlog archive resolves outside its authorized directory at /tmp/fm-manual-lab/s8/home/data/done-archive.md
+--- marker kept:
+foreign-archive-task.backlog-close
+
+========== S9 session start refuses an ambiguous archive identity ==========
+BACKLOG_RECONCILE: ambiguous-task: recorded backlog close could not be replayed: task ambiguous-task matches 2 entries in archive /tmp/fm-manual-lab/s9/home/data/done-archive.md; refusing on ambiguous archive identity
+--- marker kept:
+ambiguous-task.backlog-close
