@@ -610,6 +610,33 @@ fm_backlog_row_archived() {  # <data-dir> <id>
   esac
 }
 
+# Does the archived entry already record this exact artifact? tasks-axi embeds
+# the raw URL or report path inline, and one archive can hold both `.../pull/1`
+# and `.../pull/10`, so a bare substring hit is not proof: the occurrence must
+# stand as a whole value, bounded on both sides by the end of the entry or by a
+# byte that cannot continue a URL or path. A shorter link that merely prefixes a
+# different archived link is therefore unpreserved evidence, not preserved.
+fm_backlog_archived_entry_records() {  # <archive-entry> <artifact-value>
+  local tail=$1 value=$2 head prev next
+  while :; do
+    case "$tail" in
+      *"$value"*) ;;
+      *) return 1 ;;
+    esac
+    head=${tail%%"$value"*}
+    prev=${head#"${head%?}"}
+    tail=${tail#*"$value"}
+    next=${tail%"${tail#?}"}
+    case "$prev" in
+      ''|[!A-Za-z0-9:/?\&=._#%+~@-])
+        case "$next" in
+          ''|[!A-Za-z0-9:/?\&=._#%+~@-]) return 0 ;;
+        esac
+        ;;
+    esac
+  done
+}
+
 # An archived record is read, never rewritten, so a close that still carries
 # delivery evidence must not be satisfied by the archive unless that evidence is
 # already preserved there. tasks-axi records `--pr`/`--report` on the row itself,
@@ -631,13 +658,10 @@ fm_backlog_archived_close_evidence() {  # <id> <archive-entry> [flag...]
       --pr|--report)
         artifact=report
         [ "$previous_arg" != --pr ] || artifact=PR
-        case "$entry" in
-          *"$arg"*) ;;
-          *)
-            FM_BACKLOG_TRANSITION_ERROR="task $id is already archived with an outcome that does not record the $artifact $arg this close carries, and an archived record is never rewritten; record that $artifact in the archive entry by hand, then re-run"
-            return 1
-            ;;
-        esac
+        if ! fm_backlog_archived_entry_records "$entry" "$arg"; then
+          FM_BACKLOG_TRANSITION_ERROR="task $id is already archived with an outcome that does not record the $artifact $arg this close carries, and an archived record is never rewritten; record that $artifact in the archive entry by hand, then re-run"
+          return 1
+        fi
         ;;
       --note)
         FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED="${FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED:+$FM_BACKLOG_CLOSE_ARCHIVED_UNAPPLIED; }note \"$arg\""

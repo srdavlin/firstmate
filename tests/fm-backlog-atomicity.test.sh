@@ -2203,6 +2203,32 @@ test_recovery_refuses_an_archived_close_carrying_unrecorded_delivery_evidence() 
   pass "recovery refuses an archived close whose delivery evidence the archive never recorded"
 }
 
+# A link the archive records only as the prefix of a LONGER link (pull/1 inside
+# pull/10) is a different artifact, so it is unpreserved evidence and must refuse
+# exactly like a link the archive never recorded at all.
+test_recovery_refuses_an_archived_close_whose_pr_only_prefixes_the_archived_one() {
+  local case_dir id marker out
+  id=atomic-heal-archived-prefix-pr-b9
+  case_dir=$(make_home heal-archived-prefix-pr)
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  tasks-axi "done" "$id" --pr https://github.com/example/repo/pull/10 \
+    --file "$(backlog_of "$case_dir")" >/dev/null
+  prune_done_to_archive "$case_dir"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-archived-prefix-pr\narg=--pr\narg=https://github.com/example/repo/pull/1\n' \
+    "$id" "$(home_of "$case_dir")/data" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  assert_present "$marker" \
+    "recovery accepted an archived PR that merely prefixes this close's PR"
+  assert_contains "$out" "does not record the PR https://github.com/example/repo/pull/1" \
+    "recovery did not name the delivery evidence it refused to drop: $out"
+  assert_grep 'https://github.com/example/repo/pull/10' "$(archive_of "$case_dir")" \
+    "recovery altered the archived record's own delivery evidence"
+  pass "recovery refuses an archived close whose PR only prefixes the archived one"
+}
+
 # The same archived close, with the PR the archive already records: nothing is
 # lost, so the historical close still completes.
 test_recovery_finishes_an_archived_close_whose_evidence_the_archive_records() {
@@ -3284,6 +3310,7 @@ test_recovery_backfills_a_recorded_link_on_an_already_done_item
 test_recovery_finishes_a_close_left_open_by_an_already_archived_row
 test_recovery_refuses_a_pending_close_absent_from_backlog_and_archive
 test_recovery_refuses_an_archived_close_carrying_unrecorded_delivery_evidence
+test_recovery_refuses_an_archived_close_whose_pr_only_prefixes_the_archived_one
 test_recovery_finishes_an_archived_close_whose_evidence_the_archive_records
 test_recovery_refuses_an_archive_resolving_outside_the_home
 test_recovery_refuses_an_ambiguous_archive_match
