@@ -1307,6 +1307,12 @@ backlog_record_reconcile() {
         answered)
           echo "BOOTSTRAP_INFO: finished the interrupted cleanup for $label; the captain had already answered its call"
           ;;
+        closed_archived)
+          echo "BOOTSTRAP_INFO: finished the interrupted cleanup for $label; its backlog item was already archived"
+          ;;
+        closed_archived_incomplete)
+          echo "BOOTSTRAP_INFO: finished the interrupted cleanup for $label against its already-archived backlog item; its endpoint or local copy may remain and should be reconciled"
+          ;;
       esac
     else
       echo "BACKLOG_RECONCILE: $label: recorded backlog close could not be replayed: $FM_BACKLOG_TRANSITION_ERROR"

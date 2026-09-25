@@ -69,7 +69,10 @@ FM_BACKLOG_ROW_ERROR=
 # shellcheck disable=SC2034 # Output global, read by the sourcing caller.
 FM_BACKLOG_ROW_HOLD_KIND=
 # Set by fm_backlog_close_marker_replay: closed | closed_incomplete | retained |
-# retained_incomplete | answered | stale | noop.
+# retained_incomplete | answered | closed_archived | closed_archived_incomplete |
+# stale | noop. The closed_archived pair means the row was not in the active
+# backlog because it was already retired to the archive, verified there by
+# fm_backlog_row_archived, not because nothing was ever recorded.
 # shellcheck disable=SC2034 # Output global, read by the sourcing caller.
 FM_BACKLOG_CLOSE_REPLAY_RESULT=
 
@@ -146,6 +149,23 @@ fm_backlog_file() {  # <data-dir>
     printf '/backlog.md\n'
   else
     printf '%s/backlog.md\n' "$data"
+  fi
+}
+
+# tasks-axi's markdown default archive, beside the backlog itself, exactly as
+# `fm_backlog_file` locates the backlog: neither reads the `.tasks.toml`
+# `archive`/`path` keys, both trust the one layout this repo's own config and
+# every home this library serves actually uses.
+fm_backlog_archive_file() {  # <data-dir>
+  local data
+  data=$(fm_backlog_data_absolute "$1") || {
+    FM_BACKLOG_TRANSITION_ERROR="data directory cannot be resolved: $1"
+    return 1
+  }
+  if [ "$data" = / ]; then
+    printf '/done-archive.md\n'
+  else
+    printf '%s/done-archive.md\n' "$data"
   fi
 }
 
@@ -522,6 +542,53 @@ fm_backlog_row_probe() {  # <data-dir> <id>
   return 0
 }
 
+# A close whose row `fm_backlog_row_probe` already read as not_found needs
+# independent evidence before the transition can finish without ever mutating
+# a live row: `tasks-axi prune` (AGENTS.md section 10's done_keep retention)
+# moves a finished row out of the active backlog into the markdown archive
+# beside it, and neither `add`/`start`/`done` nor any other supported surface
+# can put it back. This only ever READS that archive; it never writes it, so a
+# genuinely finished-and-archived row is never re-mutated, only recognized.
+# Exactly one bullet naming the id is required: a missing or unreadable
+# archive, or more than one match, both refuse rather than guess, so a
+# corrupt or ambiguous archive can never stand in for a real completion.
+fm_backlog_row_archived() {  # <data-dir> <id>
+  local data=$1 id=$2 archive backend root matches
+  root=$(fm_backlog_root "$data") || return 1
+  backend=$(fm_tasks_axi_backend "$root" 2>&1) || {
+    FM_BACKLOG_TRANSITION_ERROR="$backend"
+    return 1
+  }
+  if [ "$backend" != markdown ]; then
+    FM_BACKLOG_TRANSITION_ERROR="task $id is absent from the active backlog and the $backend backend has no supported archive read to verify it"
+    return 1
+  fi
+  archive=$(fm_backlog_archive_file "$data") || return 1
+  if [ ! -f "$archive" ] || [ ! -r "$archive" ]; then
+    FM_BACKLOG_TRANSITION_ERROR="task $id is absent from the active backlog and its archive $archive is missing or unreadable"
+    return 1
+  fi
+  matches=$(LC_ALL=C awk -v id="$id" '
+    index($0, "- [x] " id " - ") == 1 { count++ }
+    END { print count + 0 }
+  ' "$archive" 2>/dev/null) || matches=
+  case "$matches" in
+    1) return 0 ;;
+    ''|*[!0-9]*)
+      FM_BACKLOG_TRANSITION_ERROR="task $id could not be verified against its archive $archive"
+      return 1
+      ;;
+    0)
+      FM_BACKLOG_TRANSITION_ERROR="task $id is absent from both the active backlog and its archive $archive"
+      return 1
+      ;;
+    *)
+      FM_BACKLOG_TRANSITION_ERROR="task $id matches $matches entries in archive $archive; refusing on ambiguous archive identity"
+      return 1
+      ;;
+  esac
+}
+
 # Run one tasks-axi mutation against <home>'s backlog, capturing its first
 # output line in FM_BACKLOG_TRANSITION_ERROR on failure. The home boundary is
 # authorized through fm_backlog_source_present first; fm_backlog_tasks_axi owns
@@ -870,7 +937,18 @@ fm_backlog_close_transition() {
   local meta=$1 marker=$2 data=$3 id=$4 state=$5
   shift 5
   [ -z "$meta" ] || fm_backlog_record_remove "$meta" "task record" "$state" || return 1
-  fm_backlog_done "$data" "$id" "$@" || return 1
+  if fm_backlog_row_probe "$data" "$id"; then
+    fm_backlog_done "$data" "$id" "$@" || return 1
+  elif [ "$FM_BACKLOG_ROW_RESULT" = not_found ]; then
+    # The row is not in the active backlog because it was already retired
+    # there, not because this close has anything left to do: verify that
+    # before treating the close as satisfied, so a row that is merely missing
+    # cannot be waved through as though it were archived.
+    fm_backlog_row_archived "$data" "$id" || return 1
+  else
+    FM_BACKLOG_TRANSITION_ERROR=$FM_BACKLOG_ROW_ERROR
+    return 1
+  fi
   fm_backlog_record_remove "$marker" "pending-close record" "$state"
 }
 
@@ -1231,9 +1309,20 @@ fm_backlog_close_marker_replay() {  # <state-dir> <marker-path> <authorized-data
       return 1
       ;;
     '')
-      fm_backlog_close_marker_remove "$marker" "$state" || return 1
-      FM_BACKLOG_CLOSE_REPLAY_RESULT=stale
-      return 0
+      # The row is absent from the active backlog for one of two reasons: it
+      # was already retired into the archive (verify and finish the close), or
+      # it is genuinely missing (refuse and keep the marker for investigation
+      # rather than silently discarding recoverable completion evidence).
+      if fm_backlog_row_archived "$data" "$id"; then
+        fm_backlog_close_marker_remove "$marker" "$state" || return 1
+        if [ "$cleanup_incomplete" = 1 ]; then
+          FM_BACKLOG_CLOSE_REPLAY_RESULT=closed_archived_incomplete
+        else
+          FM_BACKLOG_CLOSE_REPLAY_RESULT=closed_archived
+        fi
+        return 0
+      fi
+      return 1
       ;;
   esac
   if fm_backlog_atomic_transition "$mode" '' "$marker" "$data" "$id" "$state" \
