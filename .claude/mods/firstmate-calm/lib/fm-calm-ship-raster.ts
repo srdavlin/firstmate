@@ -9,11 +9,11 @@
 // Raster colors are RGB, and the terminal paints them through a quantized 256-color
 // palette rather than the standard 16-color ANSI codes Pi's widget emits, which
 // docs/calm-mode-feasibility.md records as a bounded gap. The palette is Claude Code's
-// own: the water takes the theme's spinner blue and the whole boat takes the Claude
-// orange of the stock spinner, one set per theme family. The family follows the
-// `theme` setting's prefix (`dark*` or `light*`); `auto`, custom, missing, and
-// unreadable values use the light set as the both-readable fallback. The Pi extension
-// keeps its standard ANSI colors and is unaffected.
+// own: stars take a readable slate per theme family, the whole boat takes the Claude
+// orange of the stock spinner, and exhaust takes a warm jet red, one set per theme
+// family. The family follows the `theme` setting's prefix (`dark*` or `light*`);
+// `auto`, custom, missing, and unreadable values use the light set as the both-readable
+// fallback. The Pi extension keeps its standard ANSI colors and is unaffected.
 import type {
   CalmWorkingShipColor,
   CalmWorkingShipFrame,
@@ -41,13 +41,22 @@ export type CalmShipRasterPalette = Readonly<Record<CalmWorkingShipColor, number
 export type CalmShipPaletteFamily = "dark" | "light";
 
 /**
- * Claude Code's own colors per theme family: the dark and light spinner blues for the
- * water and the Claude orange of the stock spinner for the boat, from the app's
- * built-in theme tables.
+ * Claude Code's own colors per theme family: a readable slate for stars, the Claude
+ * orange of the stock spinner for the boat, and a warm jet red for exhaust.
  */
 export const CALM_SHIP_RASTER_PALETTES: Readonly<Record<CalmShipPaletteFamily, CalmShipRasterPalette>> = {
-  dark: { plain: CALM_SHIP_RASTER_DEFAULT_COLOR, water: 0x93a5ff, boat: 0xd77757 },
-  light: { plain: CALM_SHIP_RASTER_DEFAULT_COLOR, water: 0x5769f7, boat: 0xd77757 },
+  dark: {
+    plain: CALM_SHIP_RASTER_DEFAULT_COLOR,
+    star: 0xc5cde0,
+    boat: 0xd77757,
+    exhaust: 0xff6a3d,
+  },
+  light: {
+    plain: CALM_SHIP_RASTER_DEFAULT_COLOR,
+    star: 0x5c6578,
+    boat: 0xd77757,
+    exhaust: 0xc4471a,
+  },
 };
 
 /**
@@ -104,8 +113,8 @@ export type CalmShipRasterCells = {
 
 /**
  * Pack a frame painted for exactly `columns` cells. Every row is padded with plain
- * spaces to the full width, so the saucer row's short run still fills its Raster row,
- * and a row wider than the grid is clipped rather than wrapped.
+ * spaces to the full width, so a short run still fills its Raster row, and a row
+ * wider than the grid is clipped rather than wrapped.
  */
 export function packCalmShipRasterCells(
   frame: CalmWorkingShipFrame,

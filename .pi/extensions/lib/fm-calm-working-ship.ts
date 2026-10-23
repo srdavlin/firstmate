@@ -1,6 +1,6 @@
 // Firstmate's Calm-only animated working presentation for Pi.
 //
-// Calm replaces Pi's stock working row with a tiny SSHHIP-derived boat while one
+// Calm replaces Pi's stock working row with a tiny Enterprise-inspired starship while one
 // logical agent run is active. The sprite geometry, bounce track, two animation
 // cadences, palette classes, and freeze/resume state are owned by the harness-neutral
 // ./fm-calm-working-ship-sprite.ts (a tracked symlink into the Claude Code Calm mod,
@@ -11,7 +11,7 @@
 //
 // Continuity: one extension-owned animation instance survives hide/show within the same
 // Pi process and Calm extension lifetime. Disposing the widget freezes column,
-// direction, water phase, and tick cadence without advancing them for hidden wall
+// direction, pulse phase, and tick cadence without advancing them for hidden wall
 // time. The next working period resumes from that exact logical state. A fresh session
 // or new extension lifetime calls reset() and starts at the normal initial position.
 // State is never a module-level or process-global singleton.
@@ -35,11 +35,13 @@ import {
 export { CALM_WORKING_SHIP_TICK_MS, CALM_WORKING_SHIP_TICKS_PER_MOVE };
 
 // Standard ANSI foreground codes only: no theme lookup, bright variant, or 256/RGB.
-// Water is a single blue so the swell reads through glyph height alone; the boat is a
-// single yellow so its sail halves, mast, and hull never split into mismatched colors.
+// Stars are a single white so the twinkle reads through glyph choice alone; the ship is
+// a single yellow so saucer, nacelle, hull, and nose never split into mismatched colors;
+// exhaust is a single red so the rear pulse reads as propulsion rather than hull.
 const ANSI_FOREGROUND: Record<Exclude<CalmWorkingShipColor, "plain">, string> = {
-  water: "\u001b[34m",
+  star: "\u001b[37m",
   boat: "\u001b[33m",
+  exhaust: "\u001b[31m",
 };
 // Restores the default foreground so color never bleeds into padding or later frames.
 const RESET = "\u001b[39m";
