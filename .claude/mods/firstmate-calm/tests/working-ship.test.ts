@@ -18,6 +18,8 @@ const LIGHT_HULL = 0x5c6570;
 const DARK_NACELLE = 0x6ec4e0;
 const LIGHT_NACELLE = 0x1a7aa3;
 const DARK_BRIDGE = 0x3a4250;
+const DARK_FLASH = 0xffffff;
+const LIGHT_FLASH = 0x0b1018;
 const LIGHT_BRIDGE = 0x2c333d;
 const TICK = 220;
 const TICKS_PER_MOVE = 4;
@@ -64,7 +66,40 @@ describe("the working ship", () => {
     expect(journal.blits).toHaveLength(TICKS_PER_MOVE);
     const afterMove = decodeCells(journal.blits[TICKS_PER_MOVE - 1]!.cells, 38, 2);
     expect(afterMove.glyphs[1]!.indexOf(BODY)).toBe(2);
-    expect(afterMove.glyphs[0]!.indexOf(SAUCER)).toBe(3);
+    expect(afterMove.glyphs[0]!.indexOf(SAUCER)).toBe(4);
+  });
+
+  test("trails the hull and lights a brief warp flash on a slower cadence, then returns to the normal silhouette", async ($, on) => {
+    const { clock, journal } = world(on, { preference: "on\n" });
+    await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
+    await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 }));
+    // Eight ship steps in, the hull has left the edge and a trail of exhaust color trails its rear.
+    await clock.advance(TICK * TICKS_PER_MOVE * 2);
+    const trailing = decodeCells(journal.blits.at(-1)!.cells, 38, 2);
+    const hullStart = trailing.glyphs[1]!.indexOf(BODY);
+    expect(hullStart).toBeGreaterThan(2);
+    expect(trailing.foregrounds[1]![hullStart - 2]).toBe(DARK_EXHAUST);
+    expect(trailing.foregrounds[1]!.every((color) => color !== DARK_FLASH)).toBe(true);
+    // Twenty-two ticks in, the flash is lit: the same hull glyphs in the flash color, then it is gone two ticks later.
+    await clock.advance(TICK * (22 - TICKS_PER_MOVE * 2));
+    const lit = decodeCells(journal.blits.at(-1)!.cells, 38, 2);
+    const litStart = lit.glyphs[1]!.indexOf(BODY);
+    expect(litStart).toBeGreaterThan(0);
+    expect(lit.foregrounds[1]!.slice(litStart, litStart + 6).every((color) => color === DARK_FLASH)).toBe(true);
+    expect(lit.foregrounds[0]!.some((color) => color === DARK_FLASH)).toBe(true);
+    await clock.advance(TICK * 2);
+    const after = decodeCells(journal.blits.at(-1)!.cells, 38, 2);
+    expect(after.foregrounds[1]!.every((color) => color !== DARK_FLASH)).toBe(true);
+    expect(after.glyphs[1]).toContain(BODY);
+  });
+
+  test("paints the warp flash in the light family's contrasting color", async ($, on) => {
+    const { clock, journal } = world(on, { preference: "on\n", theme: "light" });
+    await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
+    await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 }));
+    await clock.advance(TICK * 22);
+    const lit = decodeCells(journal.blits.at(-1)!.cells, 38, 2);
+    expect(lit.foregrounds[1]!.some((color) => color === LIGHT_FLASH)).toBe(true);
   });
 
   test("stops blitting a site the surface denies and resumes when the spinner is drawn again", async ($, on) => {

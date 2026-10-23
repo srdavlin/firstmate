@@ -16,11 +16,13 @@ The saucer and neck are standard ANSI white so the disk reads as grey.
 The nacelles are standard ANSI cyan so they read as light-blue.
 The bridge oval is standard ANSI black.
 The rear glow is standard ANSI red.
-The ship is deliberately calm: it moves one column every 880ms, while the starfield twinkles and the exhaust pulses every 220ms so the sky stays alive between ship steps.
+An impulse trail of two to four fading cells follows behind the rear glow on both rows, opposite the travel direction, in the same red; it breathes with the exhaust pulse, clips at the edge of the usable width, and the narrow single-row fallback draws at most two cells of it.
+Every 5.28s a warp flash lights the whole hull in bright white for 440ms, with a short streak ahead of the saucer, and then the normal silhouette and colors return.
+The ship is deliberately calm: it moves one column every 880ms, while the starfield twinkles, the exhaust pulses, and the trail breathes every 220ms so the sky stays alive between ship steps.
 Stars are placed by a deterministic hash of column, row, and tick, so the field reads as random without a non-replayable RNG.
 Every resize reflows the sprite without wrapping, and it disappears when the run settles, aborts, or fails.
 Within one Pi session and Calm extension lifetime, the next working period resumes the ship from its last rendered column and travel direction rather than restarting at the left edge.
-Hidden elapsed time does not advance the animation, and a resize while hidden clamps the frozen ship to the new width without changing its valid travel direction.
+Hidden elapsed time does not advance the animation, so a freeze inside a warp flash resumes the same lit frame and trail, and a resize while hidden clamps the frozen ship to the new width without changing its valid travel direction.
 A fresh Pi session or new Calm extension lifetime starts at the normal initial position.
 Very narrow terminals fall back to a smaller deterministic sprite.
 While Calm is off, Pi's stock working row is left exactly as Pi renders it.
@@ -78,8 +80,8 @@ The trusted project auto-loads the mod through the `.claude/skills/firstmate-cal
 With the flag on, the mod registers `/calm`, which toggles the same per-home preference Pi's `/calm` uses, so one choice applies on both harnesses.
 The toggle answers with a transient "Calm on" or "Calm off" notice under the prompt rather than a transcript row, and a preference that cannot be written leaves the current choice unchanged and says so in that notice.
 While Calm is on, the stock working row (`Sauteing... (12s · 300 tokens)`) becomes the same two-row starship Pi draws, from the same shared sprite geometry: it fills the row inside the transcript margin, repaints on the ship's 220ms cadence with the hull moving every 880ms, reflows on resize, and appears and disappears exactly where the stock row would.
-On Claude Code the ship is painted in Claude Code's own theme colors rather than Pi's standard ANSI codes: stars take a readable slate of the active theme family (`#c5cde0` on a dark theme, `#5c6578` on a light one), the saucer and neck take a grey hull (`#b7bec8` dark, `#5c6570` light), nacelles take light blue (`#6ec4e0` dark, `#1a7aa3` light), the bridge oval takes a dark grey (`#3a4250` dark, `#2c333d` light), and exhaust takes a warm jet red (`#ff6a3d` dark, `#c4471a` light).
-The family follows the `theme` setting by its prefix, `dark` or `light`, is re-read when the theme changes, and uses the light set as the both-readable fallback for `auto`, custom, missing, or unreadable values; the Pi extension keeps its standard ANSI white, cyan, black, and red.
+On Claude Code the ship is painted in Claude Code's own theme colors rather than Pi's standard ANSI codes: stars take a readable slate of the active theme family (`#c5cde0` on a dark theme, `#5c6578` on a light one), the saucer and neck take a grey hull (`#b7bec8` dark, `#5c6570` light), nacelles take light blue (`#6ec4e0` dark, `#1a7aa3` light), the bridge oval takes a dark grey (`#3a4250` dark, `#2c333d` light), and exhaust and the impulse trail take a warm jet red (`#ff6a3d` dark, `#c4471a` light), and the warp flash takes the color that contrasts most with the theme (`#ffffff` dark, `#0b1018` light).
+The family follows the `theme` setting by its prefix, `dark` or `light`, is re-read when the theme changes, and uses the light set as the both-readable fallback for `auto`, custom, missing, or unreadable values; the Pi extension keeps its standard ANSI white, cyan, black, and red, plus bright white for the warp flash.
 Tool rows, tool result blocks, and folded tool groups draw at zero height, so a turn that used tools takes the same space as one that did not.
 A user row whose text the canonical operational-input parser recognizes, a Firstmate session-start, watcher, turn-end guard, away-supervisor, launch-brief, or branch-outcome envelope, a from-firstmate routed message, or one of the narrow pre-protocol shapes kept for old transcripts, draws at zero height; every other user row, including near misses such as a quoted or ASCII-only marker, stays visible.
 Assistant text follows the shared per-block preservation rule above, including when `claude --continue` restores the transcript.

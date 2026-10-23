@@ -167,12 +167,13 @@ The sky fills both rows with a sparse deterministic starfield of `.`, `·`, `+`,
 Direction reverses the moment the ship lands on an endpoint, so the endpoint frame itself already carries the new heading.
 The sky fills the complete supplied width, the track is recomputed and clamped from that width on every frame so a resize cannot wrap or strand the ship offscreen, and widths too narrow for the hull fall back to a deterministic single row: a three-cell compact silhouette at three through six cells, and starfield only below that.
 
-One scheduler drives two linked cadences.
-Every tick twinkles the starfield and pulses the rear exhaust, and only every fourth tick moves the boat one whole cell, so at a 220ms tick the ship travels one cell per 880ms while stars and exhaust stay alive between steps.
+One scheduler drives the linked cadences.
+Every tick twinkles the starfield, pulses the rear exhaust, and breathes the impulse trail, and only every fourth tick moves the boat one whole cell, so at a 220ms tick the ship travels one cell per 880ms while stars, exhaust, and trail stay alive between steps.
+A warp flash lights the hull on the last two ticks of every 24, so it recurs on a slower cadence that is a whole number of ship steps and is derived from the same tick count.
 Ticks rather than wall-clock timestamps drive every state change, so tests seek animation time exactly, and disposing the widget stops both cadences together.
 Star placement is a deterministic hash of column, row, and tick, so the field reads as random without a non-replayable RNG, and every glyph is one terminal column under both harnesses' width rules.
 
-Colors are standard ANSI foreground codes rather than theme lookups: stars and the grey saucer and neck are white, nacelles are cyan, the bridge oval is black, and exhaust plus spark are one red, with no bright variant, 256-color, or RGB escape.
+Colors are standard ANSI foreground codes rather than theme lookups: stars and the grey saucer and neck are white, nacelles are cyan, the bridge oval is black, and exhaust, spark, and trail are one red, with no 256-color or RGB escape; bright white appears only for the warp flash.
 Each colored run is closed with a default-foreground reset so styling cannot bleed into the saucer row's padding, neighbouring UI, or a later frame, and geometry is always computed from visible cells rather than escape bytes.
 
 The presentation is TUI-only and visual-only.
@@ -857,3 +858,35 @@ width 7     width 6    width 3    width 2
 ```
 
 `tests/fm-calm-claude-mod.test.sh` pins the round saucer, twin nacelles, directional hull, rear glow, starfield fallback, and Pi-versus-core parity, `tests/fm-calm-pi-extension.test.sh`'s working-ship geometry case pins ANSI white/cyan/black/red and freeze/resume of column, direction, and pulse phase, and `.claude/mods/firstmate-calm/tests/working-ship.test.ts` pins the Claude Code Raster palettes.
+
+## 2026-10-23 Warp flash and impulse trail
+
+Two motion effects were added to the Constitution-class sprite, with no change to its silhouette, colors, starfield, rear exhaust, 220ms tick, hull step every fourth tick, track, clipping, bounce, preferences, hooks, or monitoring.
+The shared sprite module `.claude/mods/firstmate-calm/lib/fm-calm-working-ship-sprite.ts` owns both effects, so Pi's widget and the Claude Code Raster draw them from the same frame.
+
+The impulse trail is two to four fading cells behind the rear exhaust on both rows, opposite the travel direction, with a glyph per cell of distance that no exhaust or star glyph repeats.
+Its length is read from the existing 0..3 pulse phase, so it needs no new state, and the narrow single-row fallback caps it at two cells.
+It is stamped through the same clipping as every other cell, so it is cut at the row edge, and it is absent at the left edge when the ship starts there.
+
+The warp flash is a pure function of the tick count: lit for the last two ticks of every 24, the hull cells recolor to a dedicated `flash` class with their glyphs unchanged, a two-cell streak extends ahead of the saucer, and the trail draws at full length.
+Because it derives from `ticks`, `restoreLastRendered()` restores the lit or unlit frame together with the column, direction, and pulse phase, `reset()` returns it unlit, and no random source is involved.
+Pi paints the `flash` class bright white (`ESC[97m`), the only code outside the earlier white, cyan, black, and red set; Claude Code paints it `#ffffff` on a dark theme and `#0b1018` on a light one.
+
+Frames rendered through Pi's real `createCalmWorkingShipAnimation()`, ANSI stripped, pipes marking row bounds.
+The trail breathes between ticks 16 and 19, the flash is lit at ticks 22 and 23, and tick 24 is back to normal one ship step later:
+
+```text
+tick 16        tick 18        tick 22 (flash)   tick 24
+| ·░▒·▀─▄██▄ | |╴╌░▒*▀─▄██▄ | | ╴╌░▒*▀─▄██▄━─ | | ·  ░▒·▀─▄██▄ |
+|  ░▒·▄─▀██▀ | |╴╌░▒*▄─▀██▀ | | ╴╌░▒*▄─▀██▀━─ | |    ░▒·▄─▀██▀ |
+```
+
+Travelling left at 24 columns the trail follows the rear on the right, and the compact fallback keeps one short trail:
+
+```text
+24 columns, travelling left    6 columns compact
+| +    ▄██▄─▀*▒░╌╴   +  .|     |▓▄─█  |
+|      ▀██▀─▄*▒░╌╴ +*·   |
+```
+
+`tests/fm-calm-claude-mod.test.sh` pins the trail behind the hull in both directions with its fade, 2-4 cell length, width clipping, and compact cap, and the flash's deterministic cadence, unchanged silhouette, streak, and freeze, resume, and reset safety, all against the sprite's exported tables rather than literal glyphs; `tests/fm-calm-pi-extension.test.sh`'s working-ship case pins a freeze inside the flash resuming the same frame; and `.claude/mods/firstmate-calm/tests/working-ship.test.ts` pins the Claude Code Raster flash and trail on the mocked clock in both theme families.

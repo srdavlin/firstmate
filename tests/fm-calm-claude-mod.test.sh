@@ -78,9 +78,9 @@ import { pathToFileURL } from "node:url";
 const pi = await import(pathToFileURL(${PI_SHIP@Q}).href);
 const core = await import(pathToFileURL(${MOD@Q} + "/lib/fm-calm-working-ship-sprite.ts").href);
 const ESC = "\\u001b";
-const ANSI = { star: ESC + "[37m", hull: ESC + "[37m", nacelle: ESC + "[36m", bridge: ESC + "[30m", exhaust: ESC + "[31m" };
+const ANSI = { star: ESC + "[37m", hull: ESC + "[37m", nacelle: ESC + "[36m", bridge: ESC + "[30m", exhaust: ESC + "[31m", flash: ESC + "[97m" };
 const RESET = ESC + "[39m";
-const COLORS = ["plain", "star", "hull", "nacelle", "bridge", "exhaust"];
+const COLORS = ["plain", "star", "hull", "nacelle", "bridge", "exhaust", "flash"];
 const STAR = core.CALM_WORKING_SHIP_STAR_GLYPHS.join("");
 const EXHAUST = core.CALM_WORKING_SHIP_EXHAUST_GLYPHS.join("");
 const SPARK = core.CALM_WORKING_SHIP_EXHAUST_SPARK.join("");
@@ -104,7 +104,7 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
     const frame = sprite.frame(width);
     const expected = frame.map(paint);
     check(JSON.stringify(rendered) === JSON.stringify(expected), \`Pi rendering diverged from the shared frame at width \${width} step \${step}: \${JSON.stringify(rendered)} vs \${JSON.stringify(expected)}\`);
-    check(animation.position() === sprite.position() && animation.direction() === sprite.direction() && animation.waterPhase() === sprite.waterPhase(), \`Pi animation state diverged at width \${width} step \${step}\`);
+    check(animation.position() === sprite.position() && animation.direction() === sprite.direction() && animation.waterPhase() === sprite.waterPhase() && animation.warpFlash() === sprite.warpFlash(), \`Pi animation state diverged at width \${width} step \${step}\`);
     if (width === 0) check(frame.length === 0, "zero width painted a row");
     if (width > 0) {
       for (const row of frame) {
@@ -118,11 +118,11 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
         const travellingRight = sprite.direction() >= 0;
         check(hull.includes(travellingRight ? BODY_RIGHT : BODY_LEFT), \`width \${width} lost the directional hull\`);
         check(saucer.includes(SAUCER_RIGHT), \`width \${width} lost the round saucer\`);
-        check(frame[1].some((run) => run.color === "nacelle"), "the hull row lost its nacelle");
-        check(frame[1].some((run) => run.color === "hull"), "the hull row lost its grey hull");
-        check(frame[1].some((run) => run.color === "bridge"), "the hull row lost its bridge oval");
+        // A lit warp flash recolors the hull cells and leaves every glyph in place.
+        const hullColors = sprite.warpFlash() ? ["flash"] : ["nacelle", "hull", "bridge"];
+        for (const color of hullColors) check(frame[1].some((run) => run.color === color), \`the hull row lost its \${color} cells\`);
         check(frame[1].some((run) => run.color === "exhaust"), "the hull row lost its rear exhaust");
-        check(frame[0].some((run) => run.color === "nacelle"), "the saucer row lost its twin nacelle");
+        check(frame[0].some((run) => run.color === hullColors[0]), "the saucer row lost its twin nacelle");
       } else if (width >= 3) {
         const compact = cells(frame[0]);
         check(frame.length === 1 && (compact.includes(COMPACT_RIGHT) || compact.includes(COMPACT_LEFT)), \`width \${width} lost the compact silhouette: \${compact}\`);
@@ -172,7 +172,8 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
     if (saucer.includes(SAUCER_RIGHT)) seenSaucers.add(SAUCER_RIGHT);
     if (saucer.includes(SAUCER_LEFT)) seenSaucers.add(SAUCER_LEFT);
     check(frame[1].some((run) => run.color === "exhaust" && [...run.text].some((glyph) => EXHAUST.includes(glyph))), "a full-width frame lost rear exhaust");
-    check(frame[0].some((run) => run.color === "nacelle") && frame[1].some((run) => run.color === "nacelle"), "a full-width frame lost twin nacelles");
+    const nacelleColor = sprite.warpFlash() ? "flash" : "nacelle";
+    check(frame[0].some((run) => run.color === nacelleColor) && frame[1].some((run) => run.color === nacelleColor), "a full-width frame lost twin nacelles");
     sprite.tick();
   }
   check(directions.size === 2, "the sweep never travelled both directions");
@@ -191,6 +192,189 @@ JS
   out=$(run_node "$TMP_ROOT/sprite.mjs" 2>&1) || fail "shared sprite: $out"
   assert_contains "$out" "sprite-ok frames=533" "the sprite parity sweep did not cover every width and step"
   pass "the Pi working ship renders byte-for-byte the shared sprite core's frame painted in standard ANSI, at every width, cadence step, freeze, clamp, and reset, and keeps a directional top-down Constitution-class Enterprise with twin nacelles, rear glow, and a starfield in both travel directions"
+}
+
+test_warp_flash_and_impulse_trail() {
+  local out
+  cat >"$TMP_ROOT/motion.mjs" <<JS
+import { pathToFileURL } from "node:url";
+const pi = await import(pathToFileURL(${PI_SHIP@Q}).href);
+const core = await import(pathToFileURL(${MOD@Q} + "/lib/fm-calm-working-ship-sprite.ts").href);
+const raster = await import(pathToFileURL(${MOD@Q} + "/lib/fm-calm-ship-raster.ts").href);
+const check = (condition, message) => { if (!condition) throw new Error(message); };
+const cells = (row) => row.map((run) => run.text).join("");
+const colorAt = (row, column) => {
+  let at = 0;
+  for (const run of row) for (const glyph of Array.from(run.text)) { if (at === column) return { glyph, color: run.color }; at += 1; }
+  return undefined;
+};
+const TRAIL = core.CALM_WORKING_SHIP_TRAIL_GLYPHS;
+const LENGTHS = core.CALM_WORKING_SHIP_TRAIL_LENGTHS;
+const PERIOD = core.CALM_WORKING_SHIP_WARP_FLASH_PERIOD_TICKS;
+const LIT = core.CALM_WORKING_SHIP_WARP_FLASH_TICKS;
+const MOVE = core.CALM_WORKING_SHIP_TICKS_PER_MOVE;
+const SHIP_WIDTH = Array.from(core.CALM_WORKING_SHIP_BODY_RIGHT).length + 1;
+// The trail's cells behind the rear exhaust, nearest first, read straight off a hull row.
+const trailBehind = (sprite, row) => {
+  const right = sprite.direction() >= 0;
+  const rear = right ? sprite.position() : sprite.position() + SHIP_WIDTH - 1;
+  const out = [];
+  for (let step = 1; step <= 4; step += 1) {
+    const at = colorAt(row, rear + (right ? -step : step));
+    if (!at || at.color !== "exhaust" || !TRAIL.includes(at.glyph)) break;
+    out.push(at.glyph);
+  }
+  return out;
+};
+
+// The flash cadence is linked to the scheduler tick, slower than a ship step, and short.
+check(PERIOD % MOVE === 0 && PERIOD > MOVE, "the flash period is not a slower whole number of ship steps");
+check(LIT >= 1 && LIT < MOVE, "the flash is not a brief burst shorter than one ship step");
+check(pi.createCalmWorkingShipAnimation().warpFlash() === false, "the Pi animation does not start unlit");
+
+// The trail sits behind the hull in both travel directions, fades, breathes between two and four cells, never copies the exhaust glyphs, and the saucer row carries it too.
+{
+  const WIDTH = 20;
+  const sprite = core.createCalmWorkingShipSprite();
+  const lengths = new Set();
+  const seenDirections = new Set();
+  for (let step = 0; step < PERIOD * 5; step += 1) {
+    const frame = sprite.frame(WIDTH);
+    const hull = frame[1];
+    const length = trailBehind(sprite, hull).length;
+    const room = sprite.direction() >= 0 ? sprite.position() : WIDTH - (sprite.position() + SHIP_WIDTH);
+    const expected = Math.min(room, sprite.warpFlash() ? 4 : LENGTHS[sprite.waterPhase()]);
+    check(length === expected, \`step \${step} trail was \${length} cells, expected \${expected} (room \${room})\`);
+    check(JSON.stringify(trailBehind(sprite, hull)) === JSON.stringify(TRAIL.slice(0, length)), "the trail did not fade strongest-first away from the hull");
+    check(JSON.stringify(trailBehind(sprite, frame[0])) === JSON.stringify(trailBehind(sprite, hull)), "the saucer row's nacelle trail differs from the hull row's");
+    if (room >= 4) lengths.add(length);
+    seenDirections.add(sprite.direction());
+    // Nothing of the trail appears ahead of the saucer, and every trail glyph sits on the rear side.
+    const right = sprite.direction() >= 0;
+    const flat = cells(hull);
+    const rearSide = right ? flat.slice(0, sprite.position()) : flat.slice(sprite.position() + SHIP_WIDTH);
+    const frontSide = right ? flat.slice(sprite.position() + SHIP_WIDTH) : flat.slice(0, sprite.position());
+    check(![...frontSide].some((glyph) => TRAIL.includes(glyph)), "a trail glyph appeared ahead of the hull");
+    check([...rearSide].filter((glyph) => TRAIL.includes(glyph)).length === length, "trail glyphs drifted away from the rear exhaust");
+    sprite.tick();
+  }
+  check(seenDirections.size === 2, "the trail sweep never flew both directions");
+  check([...lengths].every((length) => length >= 2 && length <= 4) && lengths.size >= 3, \`the trail did not breathe over 2-4 cells: \${JSON.stringify([...lengths])}\`);
+  const exhaustGlyphs = [...core.CALM_WORKING_SHIP_EXHAUST_GLYPHS, ...core.CALM_WORKING_SHIP_EXHAUST_SPARK];
+  check(TRAIL.every((glyph) => !exhaustGlyphs.includes(glyph) && !core.CALM_WORKING_SHIP_STAR_GLYPHS.includes(glyph)), "a trail glyph is indistinguishable from the exhaust pulse or a star");
+}
+
+// The trail clips to every width, and the compact fallback keeps it short.
+for (let width = 1; width <= 60; width += 1) {
+  const sprite = core.createCalmWorkingShipSprite();
+  for (let step = 0; step < PERIOD * 3; step += 1) {
+    const frame = sprite.frame(width);
+    for (const row of frame) check(cells(row).length === width, \`width \${width} row was \${cells(row).length} cells\`);
+    if (width >= 3 && width < SHIP_WIDTH) {
+      const trail = [...cells(frame[0])].filter((glyph) => TRAIL.includes(glyph));
+      check(trail.length <= core.CALM_WORKING_SHIP_COMPACT_TRAIL_MAX, \`compact width \${width} drew a \${trail.length}-cell trail\`);
+    }
+    sprite.tick();
+  }
+}
+{
+  const sprite = core.createCalmWorkingShipSprite();
+  let sawCompactTrail = false;
+  for (let step = 0; step < PERIOD * 4; step += 1) {
+    const frame = sprite.frame(6);
+    if ([...cells(frame[0])].some((glyph) => TRAIL.includes(glyph))) sawCompactTrail = true;
+    sprite.tick();
+  }
+  check(sawCompactTrail, "the compact fallback never drew a trail");
+}
+
+// The warp flash lights on a slower deterministic cadence, recolors the hull without changing its silhouette, adds a streak ahead, then returns to normal.
+{
+  const sprite = core.createCalmWorkingShipSprite();
+  const twin = core.createCalmWorkingShipSprite();
+  const lit = [];
+  for (let step = 0; step < PERIOD * 3; step += 1) {
+    const frame = sprite.frame(40);
+    check(JSON.stringify(frame) === JSON.stringify(twin.frame(40)), "two sprites with the same ticks painted different frames");
+    check(sprite.warpFlash() === (step % PERIOD >= PERIOD - LIT), \`flash lit state at tick \${step} is not the deterministic cadence\`);
+    const hullGlyphs = cells(frame[1]);
+    const right = sprite.direction() >= 0;
+    const body = right ? core.CALM_WORKING_SHIP_BODY_RIGHT : core.CALM_WORKING_SHIP_BODY_LEFT;
+    check(hullGlyphs.includes(body), "the flash changed the hull silhouette");
+    const bodyStart = hullGlyphs.indexOf(body);
+    const flashColumns = [];
+    for (let column = 0; column < 40; column += 1) if (colorAt(frame[1], column)?.color === "flash") flashColumns.push(column);
+    if (sprite.warpFlash()) {
+      lit.push(step);
+      for (let offset = 0; offset < Array.from(body).length; offset += 1) check(colorAt(frame[1], bodyStart + offset)?.color === "flash", "the lit hull kept a normal color");
+      const aheadStart = right ? sprite.position() + SHIP_WIDTH : sprite.position() - 1;
+      const streak = core.CALM_WORKING_SHIP_WARP_STREAK_GLYPHS;
+      streak.forEach((glyph, offset) => {
+        const at = colorAt(frame[1], aheadStart + (right ? offset : -offset));
+        if (at) check(at.glyph === glyph && at.color === "flash", "the warp streak is not ahead of the saucer");
+      });
+    } else {
+      check(flashColumns.length === 0, "an unlit frame carried flash color");
+      for (const color of ["nacelle", "hull", "bridge"]) check(frame[1].some((run) => run.color === color), \`an unlit frame lost its \${color} cells\`);
+    }
+    sprite.tick();
+    twin.tick();
+  }
+  check(lit.length === LIT * 3, \`the flash lit \${lit.length} ticks in three periods, not \${LIT * 3}\`);
+}
+
+// A freeze mid-flash restores the same lit frame, trail, and streak, and a flash that started while hidden does not leak into the restored state.
+{
+  for (const frozenAt of [PERIOD - LIT, PERIOD - 1, 3, PERIOD + 7]) {
+    for (const sprite of [core.createCalmWorkingShipSprite(), pi.createCalmWorkingShipAnimation()]) {
+      const draw = (width) => (sprite.frame ? sprite.frame(width) : sprite.render(width));
+      for (let step = 0; step < frozenAt; step += 1) sprite.tick();
+      const before = JSON.stringify(draw(30));
+      const flashBefore = sprite.warpFlash();
+      for (let step = 0; step < PERIOD + 5; step += 1) sprite.tick();
+      sprite.restoreLastRendered();
+      check(sprite.warpFlash() === flashBefore, \`restore at tick \${frozenAt} changed the flash state\`);
+      check(JSON.stringify(draw(30)) === before, \`restore at tick \${frozenAt} did not repaint the frozen frame\`);
+      sprite.tick();
+      sprite.reset();
+      check(sprite.warpFlash() === false, "reset did not return to the unlit state");
+    }
+  }
+}
+
+// Pi paints the flash as bright white and the trail in the exhaust red, byte-for-byte what the shared frame says.
+{
+  const ESC = "\\u001b";
+  const animation = pi.createCalmWorkingShipAnimation();
+  const sprite = core.createCalmWorkingShipSprite();
+  let sawFlash = false;
+  for (let step = 0; step < PERIOD * 2; step += 1) {
+    const rendered = animation.render(40);
+    sprite.frame(40);
+    if (animation.warpFlash()) {
+      sawFlash = true;
+      check(rendered.every((row) => row.includes(ESC + "[97m")), "the lit Pi hull rows carried no bright white");
+    } else {
+      check(rendered.every((row) => !row.includes(ESC + "[97m")), "an unlit Pi row carried the flash color");
+    }
+    animation.tick();
+    sprite.tick();
+  }
+  check(sawFlash, "Pi never lit the warp flash");
+}
+
+// Claude Code's Raster gives the flash its own contrasting color per theme family, distinct from every hull class.
+{
+  for (const [family, colors] of Object.entries(raster.CALM_SHIP_RASTER_PALETTES)) {
+    const others = ["star", "hull", "nacelle", "bridge", "exhaust"].map((color) => colors[color]);
+    check(!others.includes(colors.flash), \`\${family} flash color is not distinct\`);
+  }
+}
+console.log("motion-ok");
+JS
+  out=$(run_node "$TMP_ROOT/motion.mjs" 2>&1) || fail "warp flash and impulse trail: $out"
+  assert_contains "$out" "motion-ok" "the warp flash and impulse trail check did not complete"
+  pass "the working ship draws a 2-4 cell fading impulse trail behind the hull in both directions, clipped to every width with a shorter compact fallback, and a brief deterministic warp flash on a slower tick cadence that recolors the unchanged silhouette, streaks ahead, and restores exactly across freeze, resume, and reset"
 }
 
 test_raster_packing() {
@@ -468,6 +652,7 @@ JS
 
 test_plugin_shape
 test_shared_sprite_and_pi_rendering
+test_warp_flash_and_impulse_trail
 test_raster_packing
 test_presentation_policy
 test_classifier_parity_with_shell_owner
