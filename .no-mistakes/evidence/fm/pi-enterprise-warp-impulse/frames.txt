@@ -1,0 +1,194 @@
+--- width 40 ---
+t=0 pos=0 dir=1 warp=false
+  |·▀─▄██▄ .    +         *        * ·    *|  colors:exhaust,nacelle,hull,bridge,plain,star
+  |·▄─▀██▀·    +   +  +.  +    +  *        |  colors:exhaust,nacelle,hull,bridge,star,plain
+t=2 pos=0 dir=1 warp=false
+  |*▀─▄██▄ ·    *      +           .      .|  colors:exhaust,nacelle,hull,bridge,plain,star
+  |*▄─▀██▀+    *  .  +*·  *  .    .        |  colors:exhaust,nacelle,hull,bridge,star,plain
+t=4 pos=1 dir=1 warp=false
+  |▒·▀─▄██▄+           *  ·        · *     |  colors:exhaust,nacelle,hull,bridge,star,plain
+  |▒·▄─▀██▀       ·. *.+     · .  ·        |  colors:exhaust,nacelle,hull,bridge,plain,star
+t=6 pos=1 dir=1 warp=false
+  |▒*▀─▄██▄*    ·      .  +        + .    +|  colors:exhaust,nacelle,hull,bridge,star,plain
+  |▒*▄─▀██▀    ·  +· . *  ·  + ·           |  colors:exhaust,nacelle,hull,bridge,plain,star
+t=8 pos=2 dir=1 warp=false
+  |░▒·▀─▄██▄    +      ·  *          ·    *|  colors:exhaust,nacelle,hull,bridge,plain,star
+  |░▒·▄─▀██▀   +  *+ ·+   +  * +  *        |  colors:exhaust,nacelle,hull,bridge,plain,star
+t=10 pos=2 dir=1 warp=false
+  |░▒*▀─▄██▄    *         .        . +    .|  colors:exhaust,nacelle,hull,bridge,plain,star
+  |░▒*▄─▀██▀   *   *  *·  *    *  .        |  colors:exhaust,nacelle,hull,bridge,plain,star
+t=12 pos=3 dir=1 warp=false
+  | ░▒·▀─▄██▄   .      *           ·      ·|  colors:plain,exhaust,nacelle,hull,bridge,star
+  | ░▒·▄─▀██▀  .  ·  *.+  .  ·    ·        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=14 pos=3 dir=1 warp=false
+  |╌░▒*▀─▄██▄          .  +        + .     |  colors:exhaust,nacelle,hull,bridge,plain,star
+  |╌░▒*▄─▀██▀     +· .·*     + ·  +        |  colors:exhaust,nacelle,hull,bridge,plain,star
+t=16 pos=4 dir=1 warp=false
+  | ·░▒·▀─▄██▄  +      ·  *        * ·    *|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |  ░▒·▄─▀██▀ +  *+ · .  +  * +           |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=18 pos=4 dir=1 warp=false
+  |╴╌░▒*▀─▄██▄  *      +  .          +    .|  colors:exhaust,nacelle,hull,bridge,plain,star
+  |╴╌░▒*▄─▀██▀ *  .* +*   *  . *  .        |  colors:exhaust,nacelle,hull,bridge,plain,star
+t=20 pos=5 dir=1 warp=false
+  | * ░▒·▀─▄██▄ .         ·        · *    ·|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |   ░▒·▄─▀██▀.   .  .+  .    .  ·        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=22 pos=5 dir=1 warp=true
+  | ╴╌░▒*▀─▄██▄━─      .           +      +|  colors:plain,exhaust,flash,star
+  | ╴╌░▒*▄─▀██▀━─ +  .·*  ·  +    +        |  colors:plain,exhaust,flash,star
+t=23 pos=5 dir=1 warp=true
+  | ╴╌░▒·▀─▄██▄━─      .  +          .    +|  colors:plain,exhaust,flash,star
+  | ╴╌░▒▓▄─▀██▀━─ +· .·   ·  + ·  +        |  colors:plain,exhaust,flash,star
+t=24 pos=6 dir=1 warp=false
+  | ·  ░▒·▀─▄██▄       ·  *        * ·     |  colors:plain,star,exhaust,nacelle,hull,bridge
+  |    ░▒·▄─▀██▀  *+ ·+.     * +  *        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=26 pos=6 dir=1 warp=false
+  | +╴╌░▒*▀─▄██▄*      +  .        . +    .|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |  ╴╌░▒*▄─▀██▀  .* + ·  *  . *           |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=28 pos=7 dir=1 warp=false
+  |     ░▒·▀─▄██▄      *  ·          *    ·|  colors:plain,exhaust,nacelle,hull,bridge,star
+  |     ░▒·▄─▀██▀ ·. *.   .  · .  ·        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=30 pos=7 dir=1 warp=false
+  | . ╴╌░▒*▀─▄██▄         +        + .    +|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |   ╴╌░▒*▄─▀██▀  ·  ·*  ·    ·  +        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=32 pos=8 dir=1 warp=false
+  | ·    ░▒·▀─▄██▄     ·           *      *|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      ░▒·▄─▀██▀*  ·+.  +  *    *        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=34 pos=8 dir=1 warp=false
+  | +  ╴╌░▒*▀─▄██▄     +  .        . +     |  colors:plain,star,exhaust,nacelle,hull,bridge
+  |    ╴╌░▒*▄─▀██▀.* +*·     . *  .        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=36 pos=9 dir=1 warp=false
+  | *    +░▒·▀─▄██▄    *  ·        · *    ·|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      ·░▒·▄─▀██▀. * +  .  · .           |  colors:plain,star,exhaust,nacelle,hull,bridge
+t=38 pos=9 dir=1 warp=false
+  |     ╴╌░▒*▀─▄██▄    .  +          .    +|  colors:plain,exhaust,nacelle,hull,bridge,star
+  |     ╴╌░▒*▄─▀██▀· .·   ·  + ·  +        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=40 pos=10 dir=1 warp=false
+  | ·    . ░▒·▀─▄██▄      *        * ·    *|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      *·░▒·▄─▀██▀  +.  +    +  *        |  colors:plain,star,exhaust,nacelle,hull,bridge
+t=42 pos=10 dir=1 warp=false
+  | +    ╴╌░▒*▀─▄██▄   +           .      .|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      ╴╌░▒*▄─▀██▀ +*·  *  .    .        |  colors:plain,exhaust,nacelle,hull,bridge,star
+t=44 pos=11 dir=1 warp=false
+  | *      +░▒·▀─▄██▄  *  ·        · *     |  colors:plain,star,exhaust,nacelle,hull,bridge
+  |       * ░▒·▄─▀██▀*.+     · .  ·        |  colors:plain,star,exhaust,nacelle,hull,bridge
+t=46 pos=11 dir=1 warp=true
+  | .    *╴╌░▒*▀─▄██▄━─.  +        + .    +|  colors:plain,star,exhaust,flash
+  |      +╴╌░▒*▄─▀██▀━─*  ·  + ·           |  colors:plain,star,exhaust,flash
+t=47 pos=11 dir=1 warp=true
+  | .    *╴╌░▒·▀─▄██▄━─.           +      +|  colors:plain,star,exhaust,flash
+  |      +╴╌░▒▓▄─▀██▀━─*  ·  +    +        |  colors:plain,star,exhaust,flash
+t=48 pos=12 dir=1 warp=false
+  |      .   ░▒·▀─▄██▄ ·  *          ·    *|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      *·  ░▒·▄─▀██▀+   +  * +  *        |  colors:plain,star,exhaust,nacelle,hull,bridge
+t=50 pos=12 dir=1 warp=false
+  | +    · ╴╌░▒*▀─▄██▄    .        . +    .|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      .+╴╌░▒*▄─▀██▀*·  *    *  .        |  colors:plain,star,exhaust,nacelle,hull,bridge
+t=52 pos=13 dir=1 warp=false
+  | *    + +  ░▒·▀─▄██▄*           ·      ·|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      ·*   ░▒·▄─▀██▀+  .  ·    ·        |  colors:plain,star,exhaust,nacelle,hull,bridge
+t=54 pos=13 dir=1 warp=false
+  | .      *╴╌░▒*▀─▄██▄.  +        + .     |  colors:plain,star,exhaust,nacelle,hull,bridge
+  |       . ╴╌░▒*▄─▀██▀*     + ·  +        |  colors:plain,star,exhaust,nacelle,hull,bridge
+t=56 pos=14 dir=1 warp=false
+  | ·    . .   ░▒·▀─▄██▄  *        * ·    *|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      *     ░▒·▄─▀██▀  +  * +           |  colors:plain,star,exhaust,nacelle,hull,bridge
+t=58 pos=14 dir=1 warp=false
+  |      ·   ╴╌░▒*▀─▄██▄  .          +    .|  colors:plain,star,exhaust,nacelle,hull,bridge
+  |      .+  ╴╌░▒*▄─▀██▀  *  . *  .        |  colors:plain,star,exhaust,nacelle,hull,bridge
+--- width 12 ---
+t=0 pos=0 dir=1 warp=false
+  |·▀─▄██▄ .   |  colors:exhaust,nacelle,hull,bridge,plain,star
+  |·▄─▀██▀·    |  colors:exhaust,nacelle,hull,bridge,star,plain
+t=2 pos=0 dir=1 warp=false
+  |*▀─▄██▄ ·   |  colors:exhaust,nacelle,hull,bridge,plain,star
+  |*▄─▀██▀+    |  colors:exhaust,nacelle,hull,bridge,star,plain
+t=4 pos=1 dir=1 warp=false
+  |▒·▀─▄██▄+   |  colors:exhaust,nacelle,hull,bridge,star,plain
+  |▒·▄─▀██▀    |  colors:exhaust,nacelle,hull,bridge,plain
+t=6 pos=1 dir=1 warp=false
+  |▒*▀─▄██▄*   |  colors:exhaust,nacelle,hull,bridge,star,plain
+  |▒*▄─▀██▀    |  colors:exhaust,nacelle,hull,bridge,plain
+t=8 pos=2 dir=1 warp=false
+  |░▒·▀─▄██▄   |  colors:exhaust,nacelle,hull,bridge,plain
+  |░▒·▄─▀██▀   |  colors:exhaust,nacelle,hull,bridge,plain
+t=10 pos=2 dir=1 warp=false
+  |░▒*▀─▄██▄   |  colors:exhaust,nacelle,hull,bridge,plain
+  |░▒*▄─▀██▀   |  colors:exhaust,nacelle,hull,bridge,plain
+t=12 pos=3 dir=1 warp=false
+  | ░▒·▀─▄██▄  |  colors:plain,exhaust,nacelle,hull,bridge
+  | ░▒·▄─▀██▀  |  colors:plain,exhaust,nacelle,hull,bridge
+t=14 pos=3 dir=1 warp=false
+  |╌░▒*▀─▄██▄  |  colors:exhaust,nacelle,hull,bridge,plain
+  |╌░▒*▄─▀██▀  |  colors:exhaust,nacelle,hull,bridge,plain
+t=16 pos=4 dir=1 warp=false
+  | ·░▒·▀─▄██▄ |  colors:plain,star,exhaust,nacelle,hull,bridge
+  |  ░▒·▄─▀██▀ |  colors:plain,exhaust,nacelle,hull,bridge
+t=18 pos=4 dir=1 warp=false
+  |╴╌░▒*▀─▄██▄ |  colors:exhaust,nacelle,hull,bridge,plain
+  |╴╌░▒*▄─▀██▀ |  colors:exhaust,nacelle,hull,bridge,plain
+t=20 pos=5 dir=-1 warp=false
+  | *   ▄██▄─▀·|  colors:plain,star,hull,bridge,nacelle,exhaust
+  |     ▀██▀─▄·|  colors:plain,hull,bridge,nacelle,exhaust
+t=22 pos=5 dir=-1 warp=true
+  | . ─━▄██▄─▀*|  colors:plain,star,flash,exhaust
+  |   ─━▀██▀─▄*|  colors:plain,flash,exhaust
+t=23 pos=5 dir=-1 warp=true
+  |   ─━▄██▄─▀·|  colors:plain,flash,exhaust
+  |   ─━▀██▀─▄▓|  colors:plain,flash,exhaust
+t=24 pos=4 dir=-1 warp=false
+  | ·  ▄██▄─▀·▒|  colors:plain,star,hull,bridge,nacelle,exhaust
+  |    ▀██▀─▄·▒|  colors:plain,hull,bridge,nacelle,exhaust
+t=26 pos=4 dir=-1 warp=false
+  | +  ▄██▄─▀*▒|  colors:plain,star,hull,bridge,nacelle,exhaust
+  |    ▀██▀─▄*▒|  colors:plain,hull,bridge,nacelle,exhaust
+t=28 pos=3 dir=-1 warp=false
+  |   ▄██▄─▀·▒░|  colors:plain,hull,bridge,nacelle,exhaust
+  |   ▀██▀─▄·▒░|  colors:plain,hull,bridge,nacelle,exhaust
+t=30 pos=3 dir=-1 warp=false
+  | . ▄██▄─▀*▒░|  colors:plain,star,hull,bridge,nacelle,exhaust
+  |   ▀██▀─▄*▒░|  colors:plain,hull,bridge,nacelle,exhaust
+t=32 pos=2 dir=-1 warp=false
+  | ·▄██▄─▀·▒░ |  colors:plain,star,hull,bridge,nacelle,exhaust
+  |  ▀██▀─▄·▒░ |  colors:plain,hull,bridge,nacelle,exhaust
+t=34 pos=2 dir=-1 warp=false
+  | +▄██▄─▀*▒░╌|  colors:plain,star,hull,bridge,nacelle,exhaust
+  |  ▀██▀─▄*▒░╌|  colors:plain,hull,bridge,nacelle,exhaust
+t=36 pos=1 dir=-1 warp=false
+  | ▄██▄─▀·▒░  |  colors:plain,hull,bridge,nacelle,exhaust
+  | ▀██▀─▄·▒░  |  colors:plain,hull,bridge,nacelle,exhaust
+t=38 pos=1 dir=-1 warp=false
+  | ▄██▄─▀*▒░╌╴|  colors:plain,hull,bridge,nacelle,exhaust
+  | ▀██▀─▄*▒░╌╴|  colors:plain,hull,bridge,nacelle,exhaust
+t=40 pos=0 dir=1 warp=false
+  |·▀─▄██▄ .   |  colors:exhaust,nacelle,hull,bridge,plain,star
+  |·▄─▀██▀·    |  colors:exhaust,nacelle,hull,bridge,star,plain
+t=42 pos=0 dir=1 warp=false
+  |*▀─▄██▄ ·   |  colors:exhaust,nacelle,hull,bridge,plain,star
+  |*▄─▀██▀+    |  colors:exhaust,nacelle,hull,bridge,star,plain
+t=44 pos=1 dir=1 warp=false
+  |▒·▀─▄██▄+   |  colors:exhaust,nacelle,hull,bridge,star,plain
+  |▒·▄─▀██▀    |  colors:exhaust,nacelle,hull,bridge,plain
+t=46 pos=1 dir=1 warp=true
+  |▒*▀─▄██▄━─  |  colors:exhaust,flash,plain
+  |▒*▄─▀██▀━─  |  colors:exhaust,flash,plain
+t=47 pos=1 dir=1 warp=true
+  |▒·▀─▄██▄━─  |  colors:exhaust,flash,plain
+  |▒▓▄─▀██▀━─  |  colors:exhaust,flash,plain
+t=48 pos=2 dir=1 warp=false
+  |░▒·▀─▄██▄   |  colors:exhaust,nacelle,hull,bridge,plain
+  |░▒·▄─▀██▀   |  colors:exhaust,nacelle,hull,bridge,plain
+t=50 pos=2 dir=1 warp=false
+  |░▒*▀─▄██▄   |  colors:exhaust,nacelle,hull,bridge,plain
+  |░▒*▄─▀██▀   |  colors:exhaust,nacelle,hull,bridge,plain
+t=52 pos=3 dir=1 warp=false
+  | ░▒·▀─▄██▄  |  colors:plain,exhaust,nacelle,hull,bridge
+  | ░▒·▄─▀██▀  |  colors:plain,exhaust,nacelle,hull,bridge
+t=54 pos=3 dir=1 warp=false
+  |╌░▒*▀─▄██▄  |  colors:exhaust,nacelle,hull,bridge,plain
+  |╌░▒*▄─▀██▀  |  colors:exhaust,nacelle,hull,bridge,plain
+t=56 pos=4 dir=1 warp=false
+  | ·░▒·▀─▄██▄ |  colors:plain,star,exhaust,nacelle,hull,bridge
+  |  ░▒·▄─▀██▀ |  colors:plain,exhaust,nacelle,hull,bridge
+t=58 pos=4 dir=1 warp=false
+  |╴╌░▒*▀─▄██▄ |  colors:exhaust,nacelle,hull,bridge,plain
+  |╴╌░▒*▄─▀██▀ |  colors:exhaust,nacelle,hull,bridge,plain
