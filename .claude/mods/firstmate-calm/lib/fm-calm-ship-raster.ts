@@ -44,7 +44,8 @@ export type CalmShipPaletteFamily = "dark" | "light";
 /**
  * Claude Code's own colors per theme family: a readable slate for stars, a grey
  * saucer and neck, light-blue nacelles, a dark bridge oval, and a warm jet red for
- * the nacelle glow.
+ * the nacelle glow and impulse trail, and the warp flash in the color that contrasts
+ * hardest with the theme (white on dark, near-black on light).
  */
 export const CALM_SHIP_RASTER_PALETTES: Readonly<Record<CalmShipPaletteFamily, CalmShipRasterPalette>> = {
   dark: {
@@ -54,6 +55,7 @@ export const CALM_SHIP_RASTER_PALETTES: Readonly<Record<CalmShipPaletteFamily, C
     nacelle: 0x6ec4e0,
     bridge: 0x3a4250,
     exhaust: 0xff6a3d,
+    flash: 0xffffff,
   },
   light: {
     plain: CALM_SHIP_RASTER_DEFAULT_COLOR,
@@ -62,6 +64,7 @@ export const CALM_SHIP_RASTER_PALETTES: Readonly<Record<CalmShipPaletteFamily, C
     nacelle: 0x1a7aa3,
     bridge: 0x2c333d,
     exhaust: 0xc4471a,
+    flash: 0x0b1018,
   },
 };
 

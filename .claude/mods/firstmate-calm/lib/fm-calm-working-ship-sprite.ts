@@ -14,15 +14,19 @@
 // symlink. Nothing here imports a harness: every glyph is one terminal column under
 // both harnesses' width rules, so widths are plain character counts.
 //
-// Cadence: one scheduler drives two linked cadences. Every tick twinkles the starfield
-// and pulses the rear exhaust, and every CALM_WORKING_SHIP_TICKS_PER_MOVE-th tick moves
-// the ship one whole cell. Ticks, not wall-clock timestamps, drive every state change,
-// so tests can seek time exactly.
+// Cadence: one scheduler drives the linked cadences. Every tick twinkles the starfield,
+// pulses the rear exhaust, and breathes the impulse trail, and every
+// CALM_WORKING_SHIP_TICKS_PER_MOVE-th tick moves the ship one whole cell. A warp flash
+// lights the whole hull for the last CALM_WORKING_SHIP_WARP_FLASH_TICKS ticks of every
+// CALM_WORKING_SHIP_WARP_FLASH_PERIOD_TICKS, a slower cadence that is a whole number of
+// ship steps. Ticks, not wall-clock timestamps, drive every state change, so tests can
+// seek time exactly.
 //
 // Continuity: one caller-owned sprite instance survives hide/show within one harness
 // process and extension lifetime. restoreLastRendered() freezes column, direction, pulse
 // phase, and tick cadence at the last painted frame without advancing them for hidden
-// wall time, and the next working period resumes from that exact logical state. A fresh
+// wall time (the trail length and the warp flash are pure functions of those ticks, so
+// they restore with them), and the next working period resumes from that exact logical state. A fresh
 // session or new extension lifetime calls reset() and starts at the normal initial
 // position. State is never a module-level or process-global singleton.
 
@@ -72,19 +76,44 @@ export const CALM_WORKING_SHIP_EXHAUST_GLYPHS = ["·", ":", "*", "▓"] as const
 /** Smaller pulse drawn over the top nacelle glow on the saucer row. */
 export const CALM_WORKING_SHIP_EXHAUST_SPARK = ["·", "˚", "*", "·"] as const;
 
-/** Scheduler period. One tick twinkles stars and pulses exhaust. */
+/**
+ * Impulse trail, strongest cell first: it fades behind the hull, opposite the travel
+ * direction, one glyph per cell of distance from the rear exhaust.
+ */
+export const CALM_WORKING_SHIP_TRAIL_GLYPHS = ["▒", "░", "╌", "╴"] as const;
+/** Trail length in cells, indexed by the 0..3 pulse phase, so the trail breathes between 2 and 4 cells. */
+export const CALM_WORKING_SHIP_TRAIL_LENGTHS = [2, 3, 4, 3] as const;
+/** Longest trail the narrow single-row fallback draws. */
+export const CALM_WORKING_SHIP_COMPACT_TRAIL_MAX = 2;
+/** Short streak drawn ahead of the saucer while the warp flash is lit, nearest cell first. */
+export const CALM_WORKING_SHIP_WARP_STREAK_GLYPHS = ["━", "─"] as const;
+
+/** Scheduler period. One tick twinkles stars, pulses exhaust, and breathes the trail. */
 export const CALM_WORKING_SHIP_TICK_MS = 220;
 /** Boat moves one column every Nth tick, so it travels at 220 * 4 = 880ms per column. */
 export const CALM_WORKING_SHIP_TICKS_PER_MOVE = 4;
+/** The warp flash recurs every six ship steps, so 24 ticks or 5.28s. */
+export const CALM_WORKING_SHIP_WARP_FLASH_PERIOD_TICKS = CALM_WORKING_SHIP_TICKS_PER_MOVE * 6;
+/** The flash lasts the last two ticks of each period (440ms), then the normal silhouette returns. */
+export const CALM_WORKING_SHIP_WARP_FLASH_TICKS = 2;
 
 /**
  * The color classes a frame uses. `plain` is uncolored empty sky; `star` is every
  * twinkling star; `hull` is the grey saucer rim and neck; `nacelle` is each light-blue
  * warp nacelle; `bridge` is the dark oval on the saucer; `exhaust` is the red/orange
- * nacelle glow. Each harness maps a class to its own color: Pi paints them as standard
- * ANSI white, cyan, black, and red; the Claude Code mod as Claude Code's theme colors.
+ * nacelle glow and the impulse trail behind it; `flash` is the bright warp flash that
+ * lights the hull and its streak. Each harness maps a class to its own color: Pi paints
+ * them as standard ANSI white, cyan, black, and red plus bright white for the flash; the
+ * Claude Code mod as Claude Code's theme colors.
  */
-export type CalmWorkingShipColor = "plain" | "star" | "hull" | "nacelle" | "bridge" | "exhaust";
+export type CalmWorkingShipColor =
+  | "plain"
+  | "star"
+  | "hull"
+  | "nacelle"
+  | "bridge"
+  | "exhaust"
+  | "flash";
 
 /** Per-cell colors of the six-cell body to the saucer side of the exhaust, travelling right. */
 const BODY_COLORS_RIGHT: readonly CalmWorkingShipColor[] = [
@@ -119,7 +148,7 @@ export type CalmWorkingShipFrame = readonly (readonly CalmWorkingShipRun[])[];
 export type CalmWorkingShipSprite = {
   /** Paint one frame that exactly fits `width`, clamping the track to it first. */
   frame(width: number): CalmWorkingShipFrame;
-  /** Advance one scheduler tick: stars and exhaust every tick, boat on its slower cadence. */
+  /** Advance one scheduler tick: stars, exhaust, and trail every tick, boat on its slower cadence. */
   tick(): void;
   /** Return to the state of the last painted frame, discarding later ticks. */
   restoreLastRendered(): void;
@@ -136,6 +165,8 @@ export type CalmWorkingShipSprite = {
   direction(): number;
   /** Current exhaust/star pulse phase, exposed for deterministic freeze assertions. */
   waterPhase(): number;
+  /** Whether the warp flash is lit at the current tick, exposed for deterministic freeze assertions. */
+  warpFlash(): boolean;
 };
 
 /** Longest hull start column that still fits the sprite in `width` usable cells. */
@@ -189,6 +220,19 @@ function exhaustGlyph(phase: number): string {
 
 function sparkGlyph(phase: number): string {
   return CALM_WORKING_SHIP_EXHAUST_SPARK[phase] ?? CALM_WORKING_SHIP_EXHAUST_SPARK[0];
+}
+
+/** Whether the tick count lands inside the lit tail of a warp flash period. */
+function warpFlashLit(ticks: number): boolean {
+  return (
+    ticks % CALM_WORKING_SHIP_WARP_FLASH_PERIOD_TICKS >=
+    CALM_WORKING_SHIP_WARP_FLASH_PERIOD_TICKS - CALM_WORKING_SHIP_WARP_FLASH_TICKS
+  );
+}
+
+/** The flash recolors every hull cell and leaves the exhaust and its glyphs alone. */
+function flashColors(colors: readonly CalmWorkingShipColor[]): readonly CalmWorkingShipColor[] {
+  return colors.map(() => "flash");
 }
 
 export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
@@ -267,21 +311,55 @@ export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
     }
   };
 
+  // The trail fades away from `from`, one cell per step in `step` (-1 or 1), and the
+  // stamp clips whatever runs off the row. A lit warp flash always draws the full length.
+  const stampTrail = (cells: Cell[], from: number, step: number, maxLength: number): void => {
+    const length = Math.min(
+      maxLength,
+      warpFlashLit(ticks) ? 4 : (CALM_WORKING_SHIP_TRAIL_LENGTHS[phase] ?? 2),
+    );
+    for (let offset = 0; offset < length; offset += 1) {
+      stamp(cells, from + step * offset, CALM_WORKING_SHIP_TRAIL_GLYPHS[offset] ?? " ", "exhaust");
+    }
+  };
+
+  const stampStreak = (cells: Cell[], from: number, step: number): void => {
+    CALM_WORKING_SHIP_WARP_STREAK_GLYPHS.forEach((glyph, offset) => {
+      stamp(cells, from + step * offset, glyph, "flash");
+    });
+  };
+
   const paintFullShip = (width: number): CalmWorkingShipFrame => {
     const saucerRow = paintSky(width, 0);
     const hullRow = paintSky(width, 1);
     const exhaust = exhaustGlyph(phase);
     const spark = sparkGlyph(phase);
+    const flashing = warpFlashLit(ticks);
+    const rightColors = flashing ? flashColors(BODY_COLORS_RIGHT) : BODY_COLORS_RIGHT;
+    const leftColors = flashing ? flashColors(BODY_COLORS_LEFT) : BODY_COLORS_LEFT;
     if (direction >= 0) {
+      stampTrail(saucerRow, position - 1, -1, 4);
+      stampTrail(hullRow, position - 1, -1, 4);
       stamp(saucerRow, position, spark, "exhaust");
       stamp(hullRow, position, exhaust, "exhaust");
-      stampColored(saucerRow, position + 1, TOP_RIGHT, BODY_COLORS_RIGHT);
-      stampColored(hullRow, position + 1, BOTTOM_RIGHT, BODY_COLORS_RIGHT);
+      stampColored(saucerRow, position + 1, TOP_RIGHT, rightColors);
+      stampColored(hullRow, position + 1, BOTTOM_RIGHT, rightColors);
+      if (flashing) {
+        stampStreak(saucerRow, position + SHIP_WIDTH, 1);
+        stampStreak(hullRow, position + SHIP_WIDTH, 1);
+      }
     } else {
-      stamp(saucerRow, position + SHIP_WIDTH - 1, spark, "exhaust");
-      stamp(hullRow, position + SHIP_WIDTH - 1, exhaust, "exhaust");
-      stampColored(saucerRow, position, TOP_LEFT, BODY_COLORS_LEFT);
-      stampColored(hullRow, position, BOTTOM_LEFT, BODY_COLORS_LEFT);
+      const rear = position + SHIP_WIDTH - 1;
+      stampTrail(saucerRow, rear + 1, 1, 4);
+      stampTrail(hullRow, rear + 1, 1, 4);
+      stamp(saucerRow, rear, spark, "exhaust");
+      stamp(hullRow, rear, exhaust, "exhaust");
+      stampColored(saucerRow, position, TOP_LEFT, leftColors);
+      stampColored(hullRow, position, BOTTOM_LEFT, leftColors);
+      if (flashing) {
+        stampStreak(saucerRow, position - 1, -1);
+        stampStreak(hullRow, position - 1, -1);
+      }
     }
     return [coalesce(saucerRow), coalesce(hullRow)];
   };
@@ -290,10 +368,17 @@ export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
     const row = paintSky(width, 0);
     const travellingRight = direction >= 0;
     const silhouette = travellingRight ? COMPACT_RIGHT : COMPACT_LEFT;
-    const colors = travellingRight ? COMPACT_COLORS_RIGHT : COMPACT_COLORS_LEFT;
+    const baseColors = travellingRight ? COMPACT_COLORS_RIGHT : COMPACT_COLORS_LEFT;
+    const colors = warpFlashLit(ticks) ? flashColors(baseColors) : baseColors;
     stampColored(row, position, silhouette, colors);
     const exhaustColumn = travellingRight ? position - 1 : position + COMPACT_WIDTH;
     stamp(row, exhaustColumn, exhaustGlyph(phase), "exhaust");
+    stampTrail(
+      row,
+      exhaustColumn + (travellingRight ? -1 : 1),
+      travellingRight ? -1 : 1,
+      CALM_WORKING_SHIP_COMPACT_TRAIL_MAX,
+    );
     return [coalesce(row)];
   };
 
@@ -301,6 +386,7 @@ export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
     position: () => position,
     direction: () => direction,
     waterPhase: () => phase,
+    warpFlash: () => warpFlashLit(ticks),
 
     restoreLastRendered: restoreLastRenderedState,
 

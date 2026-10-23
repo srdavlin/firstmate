@@ -2442,12 +2442,16 @@ const {
   createCalmWorkingShipAnimation,
   createCalmWorkingShipWidget,
 } = ship;
+const sprite = await import(
+  `${pathToFileURL(`${process.cwd()}/lib/fm-calm-working-ship-sprite.ts`).href}?sprite=${Date.now()}`
+);
 
 const ESC = "\u001b";
 const WHITE = `${ESC}[37m`;
 const CYAN = `${ESC}[36m`;
 const BLACK = `${ESC}[30m`;
 const RED = `${ESC}[31m`;
+const BRIGHT_WHITE = `${ESC}[97m`;
 const RESET = `${ESC}[39m`;
 const BODY_RIGHT = "▄─▀██▀";
 const BODY_LEFT = "▀██▀─▄";
@@ -2457,7 +2461,11 @@ const COMPACT_RIGHT = "▄─█";
 const COMPACT_LEFT = "█─▄";
 const SHIP_WIDTH = Array.from(BODY_RIGHT).length + 1;
 const STAR_GLYPHS = ".·+*";
-const SHIP_GLYPHS = "·:*▓˚▀█─▄";
+const SHIP_GLYPHS = [
+  "·:*▓˚▀█─▄",
+  ...sprite.CALM_WORKING_SHIP_TRAIL_GLYPHS,
+  ...sprite.CALM_WORKING_SHIP_WARP_STREAK_GLYPHS,
+].join("");
 const strip = (text) => text.replace(new RegExp(`${ESC}\\[[0-9;]*m`, "g"), "");
 const check = (condition, message) => {
   if (!condition) throw new Error(message);
@@ -2586,7 +2594,7 @@ const hullIndex = (row) => {
       const codes = row.match(new RegExp(`${ESC}\\[[0-9;]*m`, "g")) ?? [];
       for (const code of codes) {
         check(
-          code === WHITE || code === CYAN || code === BLACK || code === RED || code === RESET,
+          code === WHITE || code === CYAN || code === BLACK || code === RED || code === BRIGHT_WHITE || code === RESET,
           `non-standard ANSI escape ${JSON.stringify(code)} in ${JSON.stringify(row)}`,
         );
       }
@@ -2775,6 +2783,31 @@ for (const width of [40, 16, 8, 6, 5, 4, 3, 2]) {
     `post-resume motion did not continue from frozen column: ${animation.position()}`,
   );
   resumed.dispose();
+
+  // A freeze that lands inside a warp flash resumes the same lit frame and trail, and
+  // the flash then ends on its own tick cadence rather than on hidden wall time.
+  {
+    const flashing = createCalmWorkingShipAnimation();
+    flashing.render(40);
+    while (!flashing.warpFlash()) flashing.tick();
+    const litFrame = flashing.render(40);
+    check(litFrame.every((row) => row.includes(BRIGHT_WHITE)), "the lit flash frame carried no bright white");
+    const frozenFlash = createCalmWorkingShipWidget(tui, flashing);
+    frozenFlash.dispose();
+    const resumedFlash = createCalmWorkingShipWidget(tui, flashing);
+    check(flashing.warpFlash(), "resume lost the lit warp flash");
+    check(
+      JSON.stringify(resumedFlash.render(40)) === JSON.stringify(litFrame),
+      "resume did not repaint the frozen flash frame with its trail",
+    );
+    while (flashing.warpFlash()) flashing.tick();
+    check(
+      flashing.render(40).every((row) => !row.includes(BRIGHT_WHITE)),
+      "the flash did not end back at the normal silhouette",
+    );
+    resumedFlash.dispose();
+    check(!flashing.warpFlash(), "dispose after the flash ended re-lit it");
+  }
 
   // Hidden resize clamps without needing a live widget, and preserves a valid heading.
   animation.render(80);
@@ -3288,7 +3321,7 @@ JS
   status=$?
   [ "$status" -eq 0 ] || fail "Pi Calm working-ship checks failed: $out"
   [ -z "$out" ] || fail "Pi Calm working-ship test printed output: $out"
-  pass "Pi Calm working ship keeps a two-row top-down Constitution-class starship over a twinkling starfield with twin nacelles and rear glow, paints stars standard white, hull standard white, nacelles standard cyan, bridge standard black, and exhaust standard red with balanced resets, keeps ANSI-stripped width exact, reverses cleanly at both edges and every width, clamps visible and hidden resizes, falls back deterministically when narrow, freezes and resumes across settle/start without hidden-time jumps or duplicate timers, resets only on a fresh session, and leaves Calm-off visibility untouched"
+  pass "Pi Calm working ship keeps a two-row top-down Constitution-class starship over a twinkling starfield with twin nacelles and rear glow, paints stars standard white, hull standard white, nacelles standard cyan, bridge standard black, and exhaust standard red with balanced resets, trails the hull with a fading impulse trail and lights a brief bright-white warp flash that survives freeze and resume, keeps ANSI-stripped width exact, reverses cleanly at both edges and every width, clamps visible and hidden resizes, falls back deterministically when narrow, freezes and resumes across settle/start without hidden-time jumps or duplicate timers, resets only on a fresh session, and leaves Calm-off visibility untouched"
 }
 
 # The rendered-DOM assertions below depend on a real browser, so the render step

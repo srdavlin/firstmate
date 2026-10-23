@@ -34,17 +34,20 @@ import {
 
 export { CALM_WORKING_SHIP_TICK_MS, CALM_WORKING_SHIP_TICKS_PER_MOVE };
 
-// Standard ANSI foreground codes only: no theme lookup, bright variant, or 256/RGB.
+// 16-color ANSI foreground codes only: no theme lookup, 256-color, or RGB.
 // Stars are a single white so the twinkle reads through glyph choice alone; the saucer
 // and neck are white so the disk reads as grey; nacelles are cyan so they read as
 // light-blue; the bridge oval is black; exhaust is a single red so the rear pulse
-// reads as propulsion rather than hull.
+// reads as propulsion rather than hull; the impulse trail shares that red. The warp
+// flash is the one bright-white exception, so a lit hull reads as a flash and not as
+// the grey saucer.
 const ANSI_FOREGROUND: Record<Exclude<CalmWorkingShipColor, "plain">, string> = {
   star: "\u001b[37m",
   hull: "\u001b[37m",
   nacelle: "\u001b[36m",
   bridge: "\u001b[30m",
   exhaust: "\u001b[31m",
+  flash: "\u001b[97m",
 };
 // Restores the default foreground so color never bleeds into padding or later frames.
 const RESET = "\u001b[39m";
@@ -68,6 +71,7 @@ export function createCalmWorkingShipAnimation(): CalmWorkingShipAnimation {
     position: sprite.position,
     direction: sprite.direction,
     waterPhase: sprite.waterPhase,
+    warpFlash: sprite.warpFlash,
     restoreLastRendered: sprite.restoreLastRendered,
     reset: sprite.reset,
     clampToWidth: sprite.clampToWidth,
