@@ -104,7 +104,7 @@ export type CalmShipRasterCells = {
 
 /**
  * Pack a frame painted for exactly `columns` cells. Every row is padded with plain
- * spaces to the full width, so the sail row's short run still fills its Raster row,
+ * spaces to the full width, so the saucer row's short run still fills its Raster row,
  * and a row wider than the grid is clipped rather than wrapped.
  */
 export function packCalmShipRasterCells(

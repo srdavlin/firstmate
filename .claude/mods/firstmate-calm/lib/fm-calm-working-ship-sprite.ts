@@ -26,22 +26,23 @@
 // session or new extension lifetime calls reset() and starts at the normal initial
 // position. State is never a module-level or process-global singleton.
 
-// The asymmetric three-cell sail is centered over a five-cell hull. The one-cell
-// quarter triangle keeps the left sail lighter than the full right sail, and the whole
-// boat (both sail halves, mast, and hull) is one color so the sprite reads as one shape.
-// The hull's inner cells retain zero-height water glyphs instead of interrupting the trough.
-const LEFT_SAIL = "◿";
-const MAST = "│";
-const RIGHT_SAIL = "◣";
-const HULL_LEFT = "╲";
-const HULL_WATER = "▁▁▁";
-const HULL_RIGHT = "╱";
-const SAIL_OFFSET = 1;
+// The Enterprise-inspired starship is a front-on, left-right symmetric silhouette so it
+// reads the same travelling either way. A three-cell saucer sits over a five-cell hull
+// row: the saucer's rounded lens above the central engineering hull, flanked by a pair of
+// nacelle bars at the outer cells. The whole ship (saucer, engineering hull, and both
+// nacelles) is one color so the sprite reads as one shape, and the hull's two gap cells
+// keep zero-height water glyphs instead of interrupting the trough.
+const SAUCER = "▟█▙";
+const NACELLE_LEFT = "▌";
+const ENGINEERING_HULL = "█";
+const NACELLE_RIGHT = "▐";
+const HULL_GAP = "▁";
+const SAUCER_OFFSET = 1;
 
-/** The complete sail as drawn, left to right. */
-export const CALM_WORKING_SHIP_SAIL = `${LEFT_SAIL}${MAST}${RIGHT_SAIL}`;
-/** The complete hull as drawn, left to right. */
-export const CALM_WORKING_SHIP_HULL = `${HULL_LEFT}${HULL_WATER}${HULL_RIGHT}`;
+/** The complete saucer as drawn, left to right. */
+export const CALM_WORKING_SHIP_SAUCER = SAUCER;
+/** The complete hull row as drawn, left to right: nacelle, gap, engineering hull, gap, nacelle. */
+export const CALM_WORKING_SHIP_HULL = `${NACELLE_LEFT}${HULL_GAP}${ENGINEERING_HULL}${HULL_GAP}${NACELLE_RIGHT}`;
 
 /** Terminal columns a string of one-column glyphs occupies. */
 function cellCount(text: string): number {
@@ -49,7 +50,7 @@ function cellCount(text: string): number {
 }
 
 const HULL_WIDTH = cellCount(CALM_WORKING_SHIP_HULL);
-const SAIL_WIDTH = cellCount(CALM_WORKING_SHIP_SAIL);
+const SAUCER_WIDTH = cellCount(CALM_WORKING_SHIP_SAUCER);
 
 // Pi Dictation uses these bottom-aligned one-cell bars for truthful level history.
 // Calm deliberately keeps only its lower half: a long, low ocean swell rather than an
@@ -68,8 +69,8 @@ export const CALM_WORKING_SHIP_TICKS_PER_MOVE = 4;
 /**
  * The color classes a frame uses. `plain` is uncolored padding; `water` is every water
  * cell whatever its height, so the swell reads through glyph height alone; `boat` is
- * the whole boat, both sail halves, the mast, and the complete hull including its
- * zero-height interior. Each harness maps a class to its own color: Pi paints them as
+ * the whole ship, the saucer, both nacelles, and the engineering hull row including its
+ * zero-height gap cells. Each harness maps a class to its own color: Pi paints them as
  * standard ANSI blue and yellow, the Claude Code mod as Claude Code's theme colors.
  */
 export type CalmWorkingShipColor = "plain" | "water" | "boat";
@@ -108,7 +109,7 @@ export type CalmWorkingShipSprite = {
 /** Longest hull start column that still fits the sprite in `width` usable cells. */
 function trackSpan(width: number): number {
   if (width >= HULL_WIDTH) return width - HULL_WIDTH;
-  if (width >= SAIL_WIDTH) return width - SAIL_WIDTH;
+  if (width >= SAUCER_WIDTH) return width - SAUCER_WIDTH;
   return 0;
 }
 
@@ -232,8 +233,8 @@ export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
     return runs;
   };
 
-  // The boat is one boat-colored run per row, so its halves never split into mismatched colors.
-  const sail = (): CalmWorkingShipRun[] => [{ text: CALM_WORKING_SHIP_SAIL, color: "boat" }];
+  // The ship is one boat-colored run per row, so its parts never split into mismatched colors.
+  const saucer = (): CalmWorkingShipRun[] => [{ text: CALM_WORKING_SHIP_SAUCER, color: "boat" }];
   const hull = (): CalmWorkingShipRun[] => [{ text: CALM_WORKING_SHIP_HULL, color: "boat" }];
 
   return {
@@ -279,24 +280,24 @@ export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
         position +
         (width >= HULL_WIDTH
           ? Math.floor(HULL_WIDTH / 2)
-          : Math.floor(SAIL_WIDTH / 2));
+          : Math.floor(SAUCER_WIDTH / 2));
 
       let frame: CalmWorkingShipFrame;
-      if (width < SAIL_WIDTH) {
-        // Too narrow for even the sail: a deterministic single row of low water.
+      if (width < SAUCER_WIDTH) {
+        // Too narrow for even the saucer: a deterministic single row of low water.
         frame = [water(0, width, hullCenter)];
       } else if (width < HULL_WIDTH) {
-        // Too narrow for the hull: the sail alone rides inside the water row.
+        // Too narrow for the hull row: the saucer alone rides inside the water row.
         frame = [
           [
             ...water(0, position, hullCenter),
-            ...sail(),
-            ...water(position + SAIL_WIDTH, width - position - SAIL_WIDTH, hullCenter),
+            ...saucer(),
+            ...water(position + SAUCER_WIDTH, width - position - SAUCER_WIDTH, hullCenter),
           ],
         ];
       } else {
         frame = [
-          [{ text: " ".repeat(position + SAIL_OFFSET), color: "plain" }, ...sail()],
+          [{ text: " ".repeat(position + SAUCER_OFFSET), color: "plain" }, ...saucer()],
           [
             ...water(0, position, hullCenter),
             ...hull(),

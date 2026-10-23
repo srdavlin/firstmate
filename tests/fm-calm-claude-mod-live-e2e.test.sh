@@ -6,7 +6,7 @@
 #   1. With CLAUDE_CODE_ENABLE_FUNCTION_HOOKS unset, the mod is a complete no-op even
 #      with the per-home preference already on: no hooks module loads, /calm is not a
 #      command, the stock working row shows, and tool rows draw as stock.
-#   2. With the flag on, the sailboat replaces the working row and moves, tool rows and
+#   2. With the flag on, the starship replaces the working row and moves, tool rows and
 #      an exact operational user row draw at zero height, /calm restores them and
 #      persists off, /calm hides them again and persists on, all without a Calm output
 #      row in the transcript.
@@ -33,8 +33,8 @@ DEBUG_LOG_ON="$LAB/debug-on.log"
 DEBUG_LOG_RESUME="$LAB/debug-resume.log"
 SOCKET="fm-calm-claude-$$"
 SESSION="fm-calm-claude-e2e"
-HULL='╲▁▁▁╱'
-SAIL='◿│◣'
+HULL='▌▁█▁▐'
+SAUCER='▟█▙'
 
 cleanup() {
   local i=0
@@ -225,7 +225,7 @@ i=0
 while [ "$i" -lt 600 ]; do
   off_frame=$(screen)
   case "$off_frame" in
-    *"$HULL"*|*"$SAIL"*)
+    *"$HULL"*|*"$SAUCER"*)
       printf '%s\n' "$off_frame" >&2
       fail "the working ship appeared although the flag is unset"
       ;;
@@ -280,10 +280,10 @@ enter
 wait_screen "$HULL" 'the working ship during a real turn' 200
 boat_one=$(screen)
 case "$boat_one" in
-  *"$SAIL"*) : ;;
+  *"$SAUCER"*) : ;;
   *)
     printf '%s\n' "$boat_one" >&2
-    fail "the working ship lost its sail"
+    fail "the working ship lost its saucer"
     ;;
 esac
 column_one=$(hull_column "$boat_one")
@@ -303,7 +303,7 @@ done
 wait_settled 'the turn with the flag on'
 on_settled=$(screen)
 case "$on_settled" in
-  *"$HULL"*|*"$SAIL"*) fail "the working ship stayed on screen after the turn settled" ;;
+  *"$HULL"*|*"$SAUCER"*) fail "the working ship stayed on screen after the turn settled" ;;
   *'Bash('*|*'shell command'*|*'notes.txt)'*)
     printf '%s\n' "$on_settled" >&2
     fail "a tool row drew while Calm was on"
@@ -391,7 +391,7 @@ esac
 send '/exit'
 enter
 sleep 2
-pass "Claude Code $CLAUDE_VERSION with the flag on: the mod auto-loads from .claude/skills, /calm exists, the sailboat replaces and moves in the working row, tool and operational rows draw at zero height, /calm restores and re-hides them while persisting the shared preference"
+pass "Claude Code $CLAUDE_VERSION with the flag on: the mod auto-loads from .claude/skills, /calm exists, the starship replaces and moves in the working row, tool and operational rows draw at zero height, /calm restores and re-hides them while persisting the shared preference"
 
 # --- 3. Resume: the restored transcript keeps the hidden rows hidden ---------------
 launch "$DEBUG_LOG_RESUME" 1 --continue
