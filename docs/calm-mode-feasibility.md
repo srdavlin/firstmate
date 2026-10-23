@@ -150,7 +150,7 @@ The current exact marker and the narrow bare-U+2063 `Supervisor escalate (` comp
 
 ## Calm working presentation
 
-Calm replaces Pi's stock working row with a small animated boat while Calm is on and one logical agent run is active.
+Calm replaces Pi's stock working row with a small animated starship while Calm is on and one logical agent run is active.
 This path uses only public extension API and patches nothing: `ExtensionUIContext.setWorkingVisible(false)` hides the stock row, and `setWidget()` installs a temporary component factory above the editor.
 Pi's documented custom working-indicator frames are static and width-blind, so they cannot own responsive geometry; a widget component receives `render(width)` and can.
 
@@ -158,14 +158,14 @@ Pi's documented custom working-indicator frames are static and width-blind, so t
 Visibility follows `agent_start` through `agent_settled` rather than turns or tool calls.
 Pi emits `agent_settled` from a `finally` block once a run will not continue automatically, so retries, automatic continuations, queued follow-ups, and compaction inside one run never remove the boat, while settle, abort, and failure all reach the same cleanup.
 Repeated `agent_start` events inside one run are idempotent, and Pi disposes the previous component before installing a replacement under the same key and when it clears extension widgets, so the frame timer cannot duplicate or outlive the widget.
-Pi's above-editor widget container reserves one spacer row whether or not a widget is present, so removing the boat leaves no residual blank row.
+Pi's above-editor widget container reserves one spacer row whether or not a widget is present, so removing the ship leaves no residual blank row.
 
 The sprite is two rows when the usable width admits the complete five-cell ship: a two-cell saucer over a four-cell hull body, with a one-cell pulsing exhaust at the rear, pointing in the travel direction.
 Travelling right the hull is `▀██►` with saucer `▄█` over the forward hull; travelling left it is `◄██▀` with saucer `█▄`.
 A one-cell spark sits over the exhaust on the saucer row.
 The sky fills both rows with a sparse deterministic starfield of `.`, `·`, `+`, and `*`, so the ship flies through stars rather than sitting in water.
-Direction reverses the moment the boat lands on an endpoint, so the endpoint frame itself already carries the new heading.
-The sky fills the complete supplied width, the track is recomputed and clamped from that width on every frame so a resize cannot wrap or strand the boat offscreen, and widths too narrow for the hull fall back to a deterministic single row: a three-cell compact silhouette at three and four cells, and starfield only below that.
+Direction reverses the moment the ship lands on an endpoint, so the endpoint frame itself already carries the new heading.
+The sky fills the complete supplied width, the track is recomputed and clamped from that width on every frame so a resize cannot wrap or strand the ship offscreen, and widths too narrow for the hull fall back to a deterministic single row: a three-cell compact silhouette at three and four cells, and starfield only below that.
 
 One scheduler drives two linked cadences.
 Every tick twinkles the starfield and pulses the rear exhaust, and only every fourth tick moves the boat one whole cell, so at a 220ms tick the ship travels one cell per 880ms while stars and exhaust stay alive between steps.

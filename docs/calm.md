@@ -17,8 +17,8 @@ The rear exhaust and its spark are one standard ANSI red.
 The ship is deliberately calm: it moves one column every 880ms, while the starfield twinkles and the exhaust pulses every 220ms so the sky stays alive between ship steps.
 Stars are placed by a deterministic hash of column, row, and tick, so the field reads as random without a non-replayable RNG.
 Every resize reflows the sprite without wrapping, and it disappears when the run settles, aborts, or fails.
-Within one Pi session and Calm extension lifetime, the next working period resumes the boat from its last rendered column and travel direction rather than restarting at the left edge.
-Hidden elapsed time does not advance the animation, and a resize while hidden clamps the frozen boat to the new width without changing its valid travel direction.
+Within one Pi session and Calm extension lifetime, the next working period resumes the ship from its last rendered column and travel direction rather than restarting at the left edge.
+Hidden elapsed time does not advance the animation, and a resize while hidden clamps the frozen ship to the new width without changing its valid travel direction.
 A fresh Pi session or new Calm extension lifetime starts at the normal initial position.
 Very narrow terminals fall back to a smaller deterministic sprite.
 While Calm is off, Pi's stock working row is left exactly as Pi renders it.
