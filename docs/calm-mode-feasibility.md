@@ -160,9 +160,9 @@ Pi emits `agent_settled` from a `finally` block once a run will not continue aut
 Repeated `agent_start` events inside one run are idempotent, and Pi disposes the previous component before installing a replacement under the same key and when it clears extension widgets, so the frame timer cannot duplicate or outlive the widget.
 Pi's above-editor widget container reserves one spacer row whether or not a widget is present, so removing the boat leaves no residual blank row.
 
-The sprite is two rows when the usable width admits the complete hull: an asymmetric three-cell `◿│◣` sail centered over a five-cell `╲▁▁▁╱` hull that sits inside the water row rather than adding a third row.
-The sail is the same in both travel directions, and its one-cell quarter triangle keeps the left sail visibly smaller than the full right sail.
-The hull's three inner cells are zero-height water glyphs, so the swell reads as continuous beneath the boat instead of being interrupted by it.
+The sprite is two rows when the usable width admits the complete hull: an Enterprise-inspired three-cell `▟█▙` saucer centered over a five-cell `▌▁█▁▐` hull row, whose outer cells are the paired nacelles around the engineering hull, that sits inside the water row rather than adding a third row.
+The art is left-right symmetric, so it is the same in both travel directions and needs no mirrored frame.
+The hull row's two gap cells are zero-height water glyphs, so the swell reads as continuous beneath the boat instead of being interrupted by it.
 Direction reverses the moment the boat lands on an endpoint, so the endpoint frame itself already carries the new heading and the trough follows the next boat movement without a discontinuity.
 The water row fills the complete supplied width, the track is recomputed and clamped from that width on every frame so a resize cannot wrap or strand the boat offscreen, and widths too narrow for the hull fall back to a deterministic single row.
 
@@ -172,8 +172,8 @@ Ticks rather than wall-clock timestamps drive every state change, so tests seek 
 The water is the lower half of the bottom-aligned one-cell bars that Pi Dictation uses for its level history, `▁▂▃▄`, so advancing the phase never changes visible width, adds a row, or moves the hull column.
 The swell is a deterministic field of smoothstep half-waves whose lengths vary between nine and thirteen cells from a fixed hash, surrounding a broad zero-height trough five cells either side of the hull center, so the boat never rides a crest and the surface still avoids a mechanical fixed period.
 
-Colors are standard ANSI foreground codes rather than theme lookups: every water cell is blue whatever its height, so the swell reads through glyph height alone rather than a crest-versus-trough color split, and the whole boat, both sail halves, the mast, and the complete hull including its zero-height interior, is one yellow, with no bright variant, 256-color, or RGB escape.
-Each colored run is closed with a default-foreground reset so styling cannot bleed into the sail row's padding, neighbouring UI, or a later frame, and geometry is always computed from visible cells rather than escape bytes.
+Colors are standard ANSI foreground codes rather than theme lookups: every water cell is blue whatever its height, so the swell reads through glyph height alone rather than a crest-versus-trough color split, and the whole ship, the saucer, both nacelles, and the engineering hull row including its zero-height gap cells, is one yellow, with no bright variant, 256-color, or RGB escape.
+Each colored run is closed with a default-foreground reset so styling cannot bleed into the saucer row's padding, neighbouring UI, or a later frame, and geometry is always computed from visible cells rather than escape bytes.
 
 The presentation is TUI-only and visual-only.
 It adds no session entry, transcript row, model context, or export or share content, and its widget takes no keyboard input, so editor focus and Escape abort are unchanged.
@@ -744,3 +744,32 @@ The flag-off session's settled screen, with the preference `on` on disk, drew Cl
 
 ✻ Sautéed for 8s · done 11:07 AM
 ```
+
+## 2026-10-23 Enterprise-inspired working starship
+
+The working sprite's art changed from the sailboat to a small Enterprise-inspired starship, with no change to its cadence, track, clipping, freeze and resume, preferences, hooks, or monitoring.
+The shared sprite module `.claude/mods/firstmate-calm/lib/fm-calm-working-ship-sprite.ts` owns the art, so Pi's widget and the Claude Code Raster pick it up with no harness-specific change.
+The art stays inside the existing three-cell-over-five-cell budget: a `▟█▙` saucer centered over a `▌▁█▁▐` hull row, whose outer cells are the paired nacelles around the central engineering hull and whose two gap cells keep zero-height water.
+It is a left-right symmetric front view, so it needs no mirrored frame for the return trip, and the narrow fallback is the saucer alone riding the water row.
+The glyphs are block-element and quadrant characters that are one column wide under both harnesses' width rules.
+
+Frames rendered through Pi's real `createCalmWorkingShipAnimation()` and measured with the installed Pi 1.4.0 `visibleWidth`, with ANSI stripped, at ticks 0, 4, and 8 at 40 columns (the boat moves one column per four ticks) and then at the narrow widths:
+
+```text
+ ▟█▙
+▌▁█▁▐▁▁▁▁▁▂▂▃▃▃▄▄▄▄▄▃▃▃▂▂▁▁▁▁▁▁▂▂▂▃▃▃▄▄▄
+  ▟█▙
+▁▌▁█▁▐▁▁▁▁▁▂▂▃▃▃▄▄▄▄▄▃▃▃▂▂▁▁▁▁▁▁▂▂▂▃▃▃▄▄
+   ▟█▙
+▁▁▌▁█▁▐▁▁▁▁▁▂▂▃▃▃▄▄▄▄▄▃▃▃▂▂▁▁▁▁▁▁▂▂▂▃▃▃▄
+```
+
+```text
+width 5      width 4    width 3    width 2
+ ▟█▙         ▟█▙▁       ▟█▙        ▁▁
+▌▁█▁▐
+```
+
+`tests/fm-calm-claude-mod.test.sh` pins the symmetry, the paired nacelles around a distinct engineering hull, the identical ship shape in both travel directions, and the exact minimum-width and fallback frames, and its Pi-versus-core parity sweep, `tests/fm-calm-pi-extension.test.sh`'s working-ship geometry and lifecycle case, and the Claude Code plugin suite in `tests/fm-calm-claude-mod-plugin.test.sh` all pass with the new art.
+The Pi suites ran against the installed Pi 1.4.0 package through `FM_PI_PACKAGE_DIR`.
+The earlier native transcript cases of `tests/fm-calm-pi-extension.test.sh` do not currently pass against Pi 1.4.0 with or without this change, so the geometry case was run on its own.

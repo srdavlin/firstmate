@@ -105,14 +105,14 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
       }
       if (width >= 5) {
         check(frame.length === 2, \`width \${width} did not paint two rows\`);
-        check(JSON.stringify(frame[0].slice(1)) === JSON.stringify([{ text: "◿│◣", color: "boat" }]), "the sail is not one boat-colored run");
-        check(frame[0][0].color === "plain" && /^ +$/.test(frame[0][0].text), "sail padding is not plain spaces");
-        const hullAt = frame[1].findIndex((run) => run.text === "╲▁▁▁╱");
+        check(JSON.stringify(frame[0].slice(1)) === JSON.stringify([{ text: "▟█▙", color: "boat" }]), "the saucer is not one boat-colored run");
+        check(frame[0][0].color === "plain" && /^ +$/.test(frame[0][0].text), "saucer padding is not plain spaces");
+        const hullAt = frame[1].findIndex((run) => run.text === "▌▁█▁▐");
         check(hullAt >= 0, "the hull is not one run");
         check(frame[1][hullAt].color === "boat", "the hull is not boat-colored");
         check(frame[1].filter((_run, index) => index !== hullAt).every((run) => run.text.length === 1 && run.color === "water"), "water outside the hull is not one water-colored bar per cell");
       } else if (width >= 3) {
-        check(frame.length === 1 && cells(frame[0]).includes("◿│◣"), \`width \${width} lost the sail-only fallback\`);
+        check(frame.length === 1 && cells(frame[0]).includes("▟█▙"), \`width \${width} lost the saucer-only fallback\`);
       } else {
         check(frame.length === 1 && /^[▁▂▃▄]+$/.test(cells(frame[0])), \`width \${width} lost the water-only fallback\`);
       }
@@ -138,11 +138,38 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
   sprite.reset();
   check(sprite.position() === 0 && sprite.direction() === 1 && sprite.waterPhase() === 0, "reset did not restore the initial state");
 }
+// The Enterprise-inspired art is a left-right symmetric front view, so it needs no mirrored
+// frame: each ship part keeps its exact glyphs in both travel directions, and the smallest
+// widths are exact because no water varies there.
+{
+  const mirror = { "\u259f": "\u2599", "\u2599": "\u259f", "\u258c": "\u2590", "\u2590": "\u258c" };
+  const reflect = (text) => Array.from(text).reverse().map((glyph) => mirror[glyph] ?? glyph).join("");
+  const saucer = core.CALM_WORKING_SHIP_SAUCER;
+  const hull = core.CALM_WORKING_SHIP_HULL;
+  check(Array.from(saucer).length === 3 && Array.from(hull).length === 5, "the starship is not a three-cell saucer over a five-cell hull row");
+  check(reflect(saucer) === saucer && reflect(hull) === hull, "the starship is not left-right symmetric");
+  check(Array.from(hull)[0] !== Array.from(hull)[2] && Array.from(hull)[0] === reflect(Array.from(hull)[4]), "the hull row lost its paired nacelles around a distinct engineering hull");
+  const sprite = core.createCalmWorkingShipSprite();
+  const seen = new Set();
+  const directions = new Set();
+  for (let step = 0; step < 4 * 12 * 3; step += 1) {
+    const frame = sprite.frame(17);
+    directions.add(sprite.direction());
+    seen.add(cells(frame[0]).trim());
+    seen.add(frame[1].find((run) => run.color === "boat").text);
+    sprite.tick();
+  }
+  check(directions.size === 2, "the sweep never travelled both directions");
+  check(JSON.stringify([...seen].sort()) === JSON.stringify([hull, saucer].sort()), \`the ship changed shape while travelling: \${JSON.stringify([...seen])}\`);
+  const exact = core.createCalmWorkingShipSprite();
+  check(JSON.stringify(exact.frame(5).map(cells)) === JSON.stringify([" " + saucer, hull]), "the minimum full-ship frame is not the saucer over the hull row");
+  check(JSON.stringify(exact.frame(3).map(cells)) === JSON.stringify([saucer]) && JSON.stringify(exact.frame(4).map(cells)) === JSON.stringify([saucer + "\u2581"]) , "the narrow fallback is not the saucer riding the water row");
+}
 console.log("sprite-ok frames=" + frames);
 JS
   out=$(run_node "$TMP_ROOT/sprite.mjs" 2>&1) || fail "shared sprite: $out"
   assert_contains "$out" "sprite-ok frames=533" "the sprite parity sweep did not cover every width and step"
-  pass "the Pi working ship renders byte-for-byte the shared sprite core's frame painted in standard ANSI, at every width, cadence step, freeze, clamp, and reset"
+  pass "the Pi working ship renders byte-for-byte the shared sprite core's frame painted in standard ANSI, at every width, cadence step, freeze, clamp, and reset, and keeps one left-right symmetric Enterprise-inspired starship shape in both travel directions"
 }
 
 test_raster_packing() {
@@ -212,10 +239,10 @@ for (const [family, colors] of Object.entries(palettes)) for (const width of [1,
 }
 // A run wider than the grid is clipped, never wrapped into the next row.
 {
-  const packed = raster.packCalmShipRasterCells([[{ text: "▁▁▁▁▁▁▁▁", color: "water" }], [{ text: "◿│◣", color: "boat" }]], 4);
+  const packed = raster.packCalmShipRasterCells([[{ text: "▁▁▁▁▁▁▁▁", color: "water" }], [{ text: "▟█▙", color: "boat" }]], 4);
   check(packed.rows === 2, "clip changed the row count");
   const grid = decode(packed.cells, 4, 2);
-  check(grid[0].map((c) => c.glyph).join("") === "▁▁▁▁" && grid[1].map((c) => c.glyph).join("") === "◿│◣ ", "clip wrapped or dropped cells");
+  check(grid[0].map((c) => c.glyph).join("") === "▁▁▁▁" && grid[1].map((c) => c.glyph).join("") === "▟█▙ ", "clip wrapped or dropped cells");
 }
 check(raster.packCalmShipRasterCells([], 3).rows === 1, "an empty frame did not pack one blank row");
 check(raster.calmShipRasterColumns(undefined) === 78, "unmeasured viewport width");

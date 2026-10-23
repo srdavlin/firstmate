@@ -1,11 +1,11 @@
-// firstmate-calm under `claude plugin test`: the sailboat that replaces the stock
+// firstmate-calm under `claude plugin test`: the starship that replaces the stock
 // working row while Calm is on, its cadence on the mocked clock, its size against the
 // viewport, and how it lets go of a site the surface no longer draws.
 import { describe, expect, test } from "claude-code/testing";
 import { calmCommand, decodeCells, isStock, rasterOf, spinner, themeChange, unmeasuredSpinner, world } from "./support.ts";
 
-const SAIL = "◿│◣";
-const HULL = "╲▁▁▁╱";
+const SAUCER = "▟█▙";
+const HULL = "▌▁█▁▐";
 const DEFAULT = 0x01000000;
 // Claude Code's own theme tables: the spinner blue of each family for the water and
 // the Claude orange of the stock spinner for the boat.
@@ -26,13 +26,13 @@ describe("the working ship", () => {
     const { glyphs, foregrounds, backgrounds } = decodeCells(raster!.cells, 38, 2);
     expect(glyphs[0]).toHaveLength(38);
     expect(glyphs[1]).toHaveLength(38);
-    // The boat starts at the left edge: hull at column 0, sail centered one column in.
+    // The boat starts at the left edge: hull at column 0, saucer centered one column in.
     expect(glyphs[1]!.indexOf(HULL)).toBe(0);
-    expect(glyphs[0]!.indexOf(SAIL)).toBe(1);
+    expect(glyphs[0]!.indexOf(SAUCER)).toBe(1);
     expect(glyphs[0]!.slice(4)).toBe(" ".repeat(34));
     expect(glyphs[1]!.replace(HULL, "▁▁▁▁▁")).toMatch(/^[▁▂▃▄]+$/);
-    // Colors on the default dark theme: the whole boat one Claude orange (both sail halves,
-    // mast, and the complete hull including its interior), every water cell the dark
+    // Colors on the default dark theme: the whole boat one Claude orange (saucer, nacelles,
+    // engineering hull, and the complete hull row including its gaps), every water cell the dark
     // spinner blue whatever its height, default-colored padding, default backgrounds.
     expect(foregrounds[1]!.slice(0, 5)).toEqual([BOAT, BOAT, BOAT, BOAT, BOAT]);
     expect(foregrounds[0]!.slice(1, 4)).toEqual([BOAT, BOAT, BOAT]);
@@ -58,7 +58,7 @@ describe("the working ship", () => {
     expect(journal.blits).toHaveLength(TICKS_PER_MOVE);
     const afterMove = decodeCells(journal.blits[TICKS_PER_MOVE - 1]!.cells, 38, 2);
     expect(afterMove.glyphs[1]!.indexOf(HULL)).toBe(1);
-    expect(afterMove.glyphs[0]!.indexOf(SAIL)).toBe(2);
+    expect(afterMove.glyphs[0]!.indexOf(SAUCER)).toBe(2);
   });
 
   test("stops blitting a site the surface denies and resumes when the spinner is drawn again", async ($, on) => {
@@ -99,7 +99,7 @@ describe("the working ship", () => {
     const narrow = rasterOf(await $.ui.render(spinner("c", { columns: 5, rows: 40 })))!;
     expect(narrow.columns).toBe(3);
     expect(narrow.rows).toBe(1);
-    expect(decodeCells(narrow.cells, 3, 1).glyphs[0]).toBe(SAIL);
+    expect(decodeCells(narrow.cells, 3, 1).glyphs[0]).toBe(SAUCER);
     const tiny = rasterOf(await $.ui.render(spinner("d", { columns: 2, rows: 40 })))!;
     expect(tiny.columns).toBe(1);
     expect(tiny.rows).toBe(1);
