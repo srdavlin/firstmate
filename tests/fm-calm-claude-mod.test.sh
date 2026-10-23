@@ -78,9 +78,9 @@ import { pathToFileURL } from "node:url";
 const pi = await import(pathToFileURL(${PI_SHIP@Q}).href);
 const core = await import(pathToFileURL(${MOD@Q} + "/lib/fm-calm-working-ship-sprite.ts").href);
 const ESC = "\\u001b";
-const ANSI = { star: ESC + "[37m", boat: ESC + "[33m", exhaust: ESC + "[31m" };
+const ANSI = { star: ESC + "[37m", hull: ESC + "[37m", nacelle: ESC + "[36m", bridge: ESC + "[30m", exhaust: ESC + "[31m" };
 const RESET = ESC + "[39m";
-const COLORS = ["plain", "star", "boat", "exhaust"];
+const COLORS = ["plain", "star", "hull", "nacelle", "bridge", "exhaust"];
 const STAR = core.CALM_WORKING_SHIP_STAR_GLYPHS.join("");
 const EXHAUST = core.CALM_WORKING_SHIP_EXHAUST_GLYPHS.join("");
 const SPARK = core.CALM_WORKING_SHIP_EXHAUST_SPARK.join("");
@@ -111,15 +111,18 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
         check(cells(row).length === width, \`a row is \${cells(row).length} cells at width \${width}\`);
         for (const run of row) check(COLORS.includes(run.color), \`unknown color \${run.color}\`);
       }
-      if (width >= 5) {
+      if (width >= 7) {
         check(frame.length === 2, \`width \${width} did not paint two rows\`);
         const hull = cells(frame[1]);
         const saucer = cells(frame[0]);
         const travellingRight = sprite.direction() >= 0;
         check(hull.includes(travellingRight ? BODY_RIGHT : BODY_LEFT), \`width \${width} lost the directional hull\`);
-        check(saucer.includes(travellingRight ? SAUCER_RIGHT : SAUCER_LEFT), \`width \${width} lost the directional saucer\`);
-        check(frame[1].some((run) => run.color === "boat" && run.text.includes(travellingRight ? BODY_RIGHT : BODY_LEFT)), "the hull body is not boat-colored");
+        check(saucer.includes(SAUCER_RIGHT), \`width \${width} lost the round saucer\`);
+        check(frame[1].some((run) => run.color === "nacelle"), "the hull row lost its nacelle");
+        check(frame[1].some((run) => run.color === "hull"), "the hull row lost its grey hull");
+        check(frame[1].some((run) => run.color === "bridge"), "the hull row lost its bridge oval");
         check(frame[1].some((run) => run.color === "exhaust"), "the hull row lost its rear exhaust");
+        check(frame[0].some((run) => run.color === "nacelle"), "the saucer row lost its twin nacelle");
       } else if (width >= 3) {
         const compact = cells(frame[0]);
         check(frame.length === 1 && (compact.includes(COMPACT_RIGHT) || compact.includes(COMPACT_LEFT)), \`width \${width} lost the compact silhouette: \${compact}\`);
@@ -143,17 +146,18 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
   animation.restoreLastRendered(); sprite.restoreLastRendered();
   check(animation.position() === sprite.position() && animation.waterPhase() === sprite.waterPhase(), "restore diverged");
   check(sprite.waterPhase() === 1 && sprite.position() === 2, \`restore landed at phase \${sprite.waterPhase()} column \${sprite.position()}\`);
-  sprite.clampToWidth(6);
+  sprite.clampToWidth(8);
   check(sprite.position() === 1 && sprite.direction() === -1, "a hidden clamp did not turn the boat at the new edge");
   sprite.reset();
   check(sprite.position() === 0 && sprite.direction() === 1 && sprite.waterPhase() === 0, "reset did not restore the initial state");
 }
-// The Enterprise-inspired art is a side-view silhouette that points with travel
-// direction, with rear exhaust and a starfield instead of water.
+// The Enterprise-inspired art is a top-down Constitution-class silhouette that
+// flies with the saucer leading, with twin nacelles, rear glow, and a starfield.
 {
-  check(Array.from(SAUCER_RIGHT).length === 2 && Array.from(BODY_RIGHT).length === 4, "the starship is not a two-cell saucer over a four-cell hull body");
-  check(Array.from(SAUCER_LEFT).reverse().join("") === SAUCER_RIGHT, "the left saucer is not the right saucer reversed");
-  check(BODY_RIGHT.endsWith("►") && BODY_LEFT.startsWith("◄"), "the hull body does not point in the travel direction");
+  check(Array.from(SAUCER_RIGHT).length === 4 && Array.from(BODY_RIGHT).length === 6, "the starship is not a four-cell saucer over a six-cell lower hull");
+  check(Array.from(SAUCER_LEFT).reverse().join("") === SAUCER_RIGHT, "the saucer disk is not left-right symmetric");
+  check(Array.from(BODY_LEFT).reverse().join("") === BODY_RIGHT, "the left hull is not the right hull reversed");
+  check(BODY_RIGHT.startsWith("▄") && BODY_LEFT.endsWith("▄"), "the lower hull lost its twin nacelle");
   const sprite = core.createCalmWorkingShipSprite();
   const seenBodies = new Set();
   const seenSaucers = new Set();
@@ -168,13 +172,14 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
     if (saucer.includes(SAUCER_RIGHT)) seenSaucers.add(SAUCER_RIGHT);
     if (saucer.includes(SAUCER_LEFT)) seenSaucers.add(SAUCER_LEFT);
     check(frame[1].some((run) => run.color === "exhaust" && [...run.text].some((glyph) => EXHAUST.includes(glyph))), "a full-width frame lost rear exhaust");
+    check(frame[0].some((run) => run.color === "nacelle") && frame[1].some((run) => run.color === "nacelle"), "a full-width frame lost twin nacelles");
     sprite.tick();
   }
   check(directions.size === 2, "the sweep never travelled both directions");
   check(seenBodies.has(BODY_RIGHT) && seenBodies.has(BODY_LEFT), \`the hull never faced both ways: \${JSON.stringify([...seenBodies])}\`);
-  check(seenSaucers.has(SAUCER_RIGHT) && seenSaucers.has(SAUCER_LEFT), \`the saucer never faced both ways: \${JSON.stringify([...seenSaucers])}\`);
+  check(seenSaucers.has(SAUCER_RIGHT), \`the round saucer never appeared: \${JSON.stringify([...seenSaucers])}\`);
   const exact = core.createCalmWorkingShipSprite();
-  const full = exact.frame(5).map(cells);
+  const full = exact.frame(7).map(cells);
   check(full[0].includes(SAUCER_RIGHT) && full[1].includes(BODY_RIGHT), "the minimum full-ship frame lost the right-facing silhouette");
   check(full[1].includes(core.CALM_WORKING_SHIP_EXHAUST_GLYPHS[0]), "the minimum full-ship frame lost its exhaust pulse");
   const compact = exact.frame(3).map(cells);
@@ -185,7 +190,7 @@ console.log("sprite-ok frames=" + frames);
 JS
   out=$(run_node "$TMP_ROOT/sprite.mjs" 2>&1) || fail "shared sprite: $out"
   assert_contains "$out" "sprite-ok frames=533" "the sprite parity sweep did not cover every width and step"
-  pass "the Pi working ship renders byte-for-byte the shared sprite core's frame painted in standard ANSI, at every width, cadence step, freeze, clamp, and reset, and keeps a directional side-view Enterprise with rear exhaust and a starfield in both travel directions"
+  pass "the Pi working ship renders byte-for-byte the shared sprite core's frame painted in standard ANSI, at every width, cadence step, freeze, clamp, and reset, and keeps a directional top-down Constitution-class Enterprise with twin nacelles, rear glow, and a starfield in both travel directions"
 }
 
 test_raster_packing() {
@@ -214,10 +219,10 @@ const decode = (cells, columns, rows) => {
   }
   return grid;
 };
-// Stars, boat, and exhaust per theme family; boat stays Claude orange.
+// Stars, grey hull, light-blue nacelles, dark bridge, and jet exhaust per theme family.
 const palettes = raster.CALM_SHIP_RASTER_PALETTES;
-check(palettes.dark.star === 0xc5cde0 && palettes.dark.boat === 0xd77757 && palettes.dark.exhaust === 0xff6a3d, "dark palette is not slate stars, Claude orange boat, and jet exhaust");
-check(palettes.light.star === 0x5c6578 && palettes.light.boat === 0xd77757 && palettes.light.exhaust === 0xc4471a, "light palette is not slate stars, Claude orange boat, and jet exhaust");
+check(palettes.dark.star === 0xc5cde0 && palettes.dark.hull === 0xb7bec8 && palettes.dark.nacelle === 0x6ec4e0 && palettes.dark.bridge === 0x3a4250 && palettes.dark.exhaust === 0xff6a3d, "dark palette is not slate stars, grey hull, light-blue nacelles, dark bridge, and jet exhaust");
+check(palettes.light.star === 0x5c6578 && palettes.light.hull === 0x5c6570 && palettes.light.nacelle === 0x1a7aa3 && palettes.light.bridge === 0x2c333d && palettes.light.exhaust === 0xc4471a, "light palette is not slate stars, grey hull, light-blue nacelles, dark bridge, and jet exhaust");
 check(palettes.dark.plain === raster.CALM_SHIP_RASTER_DEFAULT_COLOR && palettes.light.plain === raster.CALM_SHIP_RASTER_DEFAULT_COLOR, "plain padding is not the terminal default");
 for (const [theme, family] of [["dark", "dark"], ["dark-ansi", "dark"], ["dark-daltonized", "dark"], ["light", "light"], ["light-ansi", "light"], ["light-daltonized", "light"], ["auto", "light"], ["custom:rose", "light"], [undefined, "light"], [42, "light"], ["", "light"]]) {
   check(raster.calmShipPaletteFamily(theme) === family, \`theme \${JSON.stringify(theme)} chose \${raster.calmShipPaletteFamily(theme)}, not \${family}\`);
@@ -255,10 +260,10 @@ for (const [family, colors] of Object.entries(palettes)) for (const width of [1,
 }
 // A run wider than the grid is clipped, never wrapped into the next row.
 {
-  const packed = raster.packCalmShipRasterCells([[{ text: "********", color: "star" }], [{ text: "▄█►", color: "boat" }]], 4);
+  const packed = raster.packCalmShipRasterCells([[{ text: "********", color: "star" }], [{ text: "▄─█", color: "hull" }]], 4);
   check(packed.rows === 2, "clip changed the row count");
   const grid = decode(packed.cells, 4, 2);
-  check(grid[0].map((c) => c.glyph).join("") === "****" && grid[1].map((c) => c.glyph).join("") === "▄█► ", "clip wrapped or dropped cells");
+  check(grid[0].map((c) => c.glyph).join("") === "****" && grid[1].map((c) => c.glyph).join("") === "▄─█ ", "clip wrapped or dropped cells");
 }
 check(raster.packCalmShipRasterCells([], 3).rows === 1, "an empty frame did not pack one blank row");
 check(raster.calmShipRasterColumns(undefined) === 78, "unmeasured viewport width");

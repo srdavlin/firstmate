@@ -33,10 +33,10 @@ DEBUG_LOG_ON="$LAB/debug-on.log"
 DEBUG_LOG_RESUME="$LAB/debug-resume.log"
 SOCKET="fm-calm-claude-$$"
 SESSION="fm-calm-claude-e2e"
-HULL='▀██►'
-HULL_LEFT='◄██▀'
-SAUCER='▄█'
-SAUCER_LEFT='█▄'
+HULL='▄─▀██▀'
+HULL_LEFT='▀██▀─▄'
+SAUCER='▄██▄'
+SAUCER_LEFT='▄██▄'
 
 cleanup() {
   local i=0
@@ -165,15 +165,15 @@ command_listed() {  # <command>
 }
 
 hull_column() {  # <screen text>
-  printf '%s\n' "$1" | awk 'match($0, /▀██►|◄██▀/) { print RSTART; exit }'
+  printf '%s\n' "$1" | awk 'match($0, /▄─▀██▀|▀██▀─▄/) { print RSTART; exit }'
 }
 
 ship_shown() {  # <screen text>
-  printf '%s\n' "$1" | grep -Eq '▀██►|◄██▀'
+  printf '%s\n' "$1" | grep -Eq '▄─▀██▀|▀██▀─▄'
 }
 
 saucer_shown() {  # <screen text>
-  printf '%s\n' "$1" | grep -Eq '▄█|█▄'
+  printf '%s\n' "$1" | grep -Eq '▄██▄'
 }
 
 # The answer names words that live only in notes.txt, so the settled turn is told apart

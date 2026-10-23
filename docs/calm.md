@@ -10,10 +10,12 @@ It hides a block only when its raw text contains no newline and its trimmed leng
 
 While Calm is active and an agent run is under way, Calm hides Pi's built-in `Working...` row and shows a small two-row animated starship in its place, and no separate Calm status row is added.
 Twinkling stars fill the usable width in standard ANSI white, so the field stays alive through glyph choice alone.
-The Enterprise-inspired starship is a side-view silhouette that points in the travel direction: a two-cell saucer over a four-cell hull, with a pulsing exhaust at the rear.
-Travelling right the hull is `▀██►` with saucer `▄█` over the forward hull; travelling left it is `◄██▀` with saucer `█▄`.
-The whole ship is one standard ANSI yellow.
-The rear exhaust and its spark are one standard ANSI red.
+The Enterprise-inspired starship is a top-down Constitution-class silhouette that flies with the saucer leading: a four-cell round saucer with a dark bridge oval, a thin neck, twin nacelles, and a pulsing glow at the rear of each nacelle.
+Travelling right the lower hull is `▄─▀██▀` with saucer `▄██▄` leading; travelling left it is `▀██▀─▄` with the same saucer leading.
+The saucer and neck are standard ANSI white so the disk reads as grey.
+The nacelles are standard ANSI cyan so they read as light-blue.
+The bridge oval is standard ANSI black.
+The rear glow is standard ANSI red.
 The ship is deliberately calm: it moves one column every 880ms, while the starfield twinkles and the exhaust pulses every 220ms so the sky stays alive between ship steps.
 Stars are placed by a deterministic hash of column, row, and tick, so the field reads as random without a non-replayable RNG.
 Every resize reflows the sprite without wrapping, and it disappears when the run settles, aborts, or fails.
@@ -76,8 +78,8 @@ The trusted project auto-loads the mod through the `.claude/skills/firstmate-cal
 With the flag on, the mod registers `/calm`, which toggles the same per-home preference Pi's `/calm` uses, so one choice applies on both harnesses.
 The toggle answers with a transient "Calm on" or "Calm off" notice under the prompt rather than a transcript row, and a preference that cannot be written leaves the current choice unchanged and says so in that notice.
 While Calm is on, the stock working row (`Sauteing... (12s · 300 tokens)`) becomes the same two-row starship Pi draws, from the same shared sprite geometry: it fills the row inside the transcript margin, repaints on the ship's 220ms cadence with the hull moving every 880ms, reflows on resize, and appears and disappears exactly where the stock row would.
-On Claude Code the ship is painted in Claude Code's own theme colors rather than Pi's standard ANSI codes: stars take a readable slate of the active theme family (`#c5cde0` on a dark theme, `#5c6578` on a light one), the whole ship takes the Claude orange of the stock spinner (`#d77757`), and exhaust takes a warm jet red (`#ff6a3d` dark, `#c4471a` light).
-The family follows the `theme` setting by its prefix, `dark` or `light`, is re-read when the theme changes, and uses the light set as the both-readable fallback for `auto`, custom, missing, or unreadable values; the Pi extension keeps its standard ANSI white, yellow, and red.
+On Claude Code the ship is painted in Claude Code's own theme colors rather than Pi's standard ANSI codes: stars take a readable slate of the active theme family (`#c5cde0` on a dark theme, `#5c6578` on a light one), the saucer and neck take a grey hull (`#b7bec8` dark, `#5c6570` light), nacelles take light blue (`#6ec4e0` dark, `#1a7aa3` light), the bridge oval takes a dark grey (`#3a4250` dark, `#2c333d` light), and exhaust takes a warm jet red (`#ff6a3d` dark, `#c4471a` light).
+The family follows the `theme` setting by its prefix, `dark` or `light`, is re-read when the theme changes, and uses the light set as the both-readable fallback for `auto`, custom, missing, or unreadable values; the Pi extension keeps its standard ANSI white, cyan, black, and red.
 Tool rows, tool result blocks, and folded tool groups draw at zero height, so a turn that used tools takes the same space as one that did not.
 A user row whose text the canonical operational-input parser recognizes, a Firstmate session-start, watcher, turn-end guard, away-supervisor, launch-brief, or branch-outcome envelope, a from-firstmate routed message, or one of the narrow pre-protocol shapes kept for old transcripts, draws at zero height; every other user row, including near misses such as a quoted or ASCII-only marker, stays visible.
 Assistant text follows the shared per-block preservation rule above, including when `claude --continue` restores the transcript.

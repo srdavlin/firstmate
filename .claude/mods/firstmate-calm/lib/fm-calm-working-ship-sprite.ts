@@ -26,28 +26,31 @@
 // session or new extension lifetime calls reset() and starts at the normal initial
 // position. State is never a module-level or process-global singleton.
 
-// Side-view Enterprise-inspired silhouette that points in the travel direction.
-// Five cells: a pulsing exhaust at the rear, a nacelle bar, a two-cell engineering
-// hull, and a nose. A two-cell saucer sits over the forward hull, and a small spark
-// sits over the exhaust. The ship (saucer, nacelle, hull, nose) is one color; exhaust
-// and spark are a second color so the propulsion reads as energy rather than hull.
-const SAUCER_RIGHT = "▄█";
-const SAUCER_LEFT = "█▄";
-const BODY_RIGHT = "▀██►";
-const BODY_LEFT = "◄██▀";
-const COMPACT_RIGHT = "▄█►";
-const COMPACT_LEFT = "◄█▄";
-const SAUCER_OFFSET_RIGHT = 2;
-const SAUCER_OFFSET_LEFT = 1;
+// Top-down Constitution-class silhouette that flies with the saucer leading.
+// Seven cells: pulsing nacelle glow at the rear, twin nacelles, a thin neck, and a
+// four-cell round saucer with a dark two-cell bridge oval. The saucer disk is the same
+// both ways; travel direction is the nacelle/glow placement. Compact fallback is a
+// three-cell one-row cut of nacelle, neck, and saucer.
+const SAUCER_TOP = "▄██▄";
+const SAUCER_BOTTOM = "▀██▀";
+const NACELLE_TOP = "▀";
+const NACELLE_BOTTOM = "▄";
+const NECK = "─";
+const TOP_RIGHT = NACELLE_TOP + NECK + SAUCER_TOP;
+const BOTTOM_RIGHT = NACELLE_BOTTOM + NECK + SAUCER_BOTTOM;
+const TOP_LEFT = SAUCER_TOP + NECK + NACELLE_TOP;
+const BOTTOM_LEFT = SAUCER_BOTTOM + NECK + NACELLE_BOTTOM;
+const COMPACT_RIGHT = NACELLE_BOTTOM + NECK + "█";
+const COMPACT_LEFT = "█" + NECK + NACELLE_BOTTOM;
 
-/** Saucer disk as drawn when travelling right. */
-export const CALM_WORKING_SHIP_SAUCER_RIGHT = SAUCER_RIGHT;
-/** Saucer disk as drawn when travelling left. */
-export const CALM_WORKING_SHIP_SAUCER_LEFT = SAUCER_LEFT;
-/** Stable hull body when travelling right, exhaust excluded. */
-export const CALM_WORKING_SHIP_BODY_RIGHT = BODY_RIGHT;
-/** Stable hull body when travelling left, exhaust excluded. */
-export const CALM_WORKING_SHIP_BODY_LEFT = BODY_LEFT;
+/** Round saucer disk as drawn on the upper row, either travel direction. */
+export const CALM_WORKING_SHIP_SAUCER_RIGHT = SAUCER_TOP;
+/** Round saucer disk as drawn on the upper row, either travel direction. */
+export const CALM_WORKING_SHIP_SAUCER_LEFT = SAUCER_TOP;
+/** Stable lower-row hull when travelling right, exhaust excluded. */
+export const CALM_WORKING_SHIP_BODY_RIGHT = BOTTOM_RIGHT;
+/** Stable lower-row hull when travelling left, exhaust excluded. */
+export const CALM_WORKING_SHIP_BODY_LEFT = BOTTOM_LEFT;
 /** Narrow single-row silhouette when travelling right. */
 export const CALM_WORKING_SHIP_COMPACT_RIGHT = COMPACT_RIGHT;
 /** Narrow single-row silhouette when travelling left. */
@@ -58,7 +61,7 @@ function cellCount(text: string): number {
   return Array.from(text).length;
 }
 
-const BODY_WIDTH = cellCount(BODY_RIGHT);
+const BODY_WIDTH = cellCount(BOTTOM_RIGHT);
 const SHIP_WIDTH = BODY_WIDTH + 1;
 const COMPACT_WIDTH = cellCount(COMPACT_RIGHT);
 
@@ -66,7 +69,7 @@ const COMPACT_WIDTH = cellCount(COMPACT_RIGHT);
 export const CALM_WORKING_SHIP_STAR_GLYPHS = [".", "·", "+", "*"] as const;
 /** Exhaust pulse, indexed by the same 0..3 phase the freeze/resume API exposes. */
 export const CALM_WORKING_SHIP_EXHAUST_GLYPHS = ["·", ":", "*", "▓"] as const;
-/** Smaller pulse drawn over the exhaust on the saucer row. */
+/** Smaller pulse drawn over the top nacelle glow on the saucer row. */
 export const CALM_WORKING_SHIP_EXHAUST_SPARK = ["·", "˚", "*", "·"] as const;
 
 /** Scheduler period. One tick twinkles stars and pulses exhaust. */
@@ -76,12 +79,33 @@ export const CALM_WORKING_SHIP_TICKS_PER_MOVE = 4;
 
 /**
  * The color classes a frame uses. `plain` is uncolored empty sky; `star` is every
- * twinkling star; `boat` is the whole ship, saucer, nacelle, engineering hull, and
- * nose; `exhaust` is the rear propulsion and its spark. Each harness maps a class to
- * its own color: Pi paints them as standard ANSI white, yellow, and red, the Claude
- * Code mod as Claude Code's theme colors.
+ * twinkling star; `hull` is the grey saucer rim and neck; `nacelle` is each light-blue
+ * warp nacelle; `bridge` is the dark oval on the saucer; `exhaust` is the red/orange
+ * nacelle glow. Each harness maps a class to its own color: Pi paints them as standard
+ * ANSI white, cyan, black, and red; the Claude Code mod as Claude Code's theme colors.
  */
-export type CalmWorkingShipColor = "plain" | "star" | "boat" | "exhaust";
+export type CalmWorkingShipColor = "plain" | "star" | "hull" | "nacelle" | "bridge" | "exhaust";
+
+/** Per-cell colors of the six-cell body to the saucer side of the exhaust, travelling right. */
+const BODY_COLORS_RIGHT: readonly CalmWorkingShipColor[] = [
+  "nacelle",
+  "hull",
+  "hull",
+  "bridge",
+  "bridge",
+  "hull",
+];
+/** Per-cell colors of the six-cell body, travelling left: the right-facing list reversed. */
+const BODY_COLORS_LEFT: readonly CalmWorkingShipColor[] = [
+  "hull",
+  "bridge",
+  "bridge",
+  "hull",
+  "hull",
+  "nacelle",
+];
+const COMPACT_COLORS_RIGHT: readonly CalmWorkingShipColor[] = ["nacelle", "hull", "hull"];
+const COMPACT_COLORS_LEFT: readonly CalmWorkingShipColor[] = ["hull", "hull", "nacelle"];
 
 /** One same-colored run of cells inside a frame row. */
 export type CalmWorkingShipRun = {
@@ -230,6 +254,19 @@ export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
     cells[column] = { text: glyph, color };
   };
 
+  const stampColored = (
+    cells: Cell[],
+    column: number,
+    glyphs: string,
+    colors: readonly CalmWorkingShipColor[],
+  ): void => {
+    let offset = 0;
+    for (const glyph of Array.from(glyphs)) {
+      stamp(cells, column + offset, glyph, colors[offset] ?? "hull");
+      offset += 1;
+    }
+  };
+
   const paintFullShip = (width: number): CalmWorkingShipFrame => {
     const saucerRow = paintSky(width, 0);
     const hullRow = paintSky(width, 1);
@@ -238,42 +275,24 @@ export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
     if (direction >= 0) {
       stamp(saucerRow, position, spark, "exhaust");
       stamp(hullRow, position, exhaust, "exhaust");
-      let offset = 0;
-      for (const glyph of Array.from(SAUCER_RIGHT)) {
-        stamp(saucerRow, position + SAUCER_OFFSET_RIGHT + offset, glyph, "boat");
-        offset += 1;
-      }
-      offset = 0;
-      for (const glyph of Array.from(BODY_RIGHT)) {
-        stamp(hullRow, position + 1 + offset, glyph, "boat");
-        offset += 1;
-      }
+      stampColored(saucerRow, position + 1, TOP_RIGHT, BODY_COLORS_RIGHT);
+      stampColored(hullRow, position + 1, BOTTOM_RIGHT, BODY_COLORS_RIGHT);
     } else {
       stamp(saucerRow, position + SHIP_WIDTH - 1, spark, "exhaust");
       stamp(hullRow, position + SHIP_WIDTH - 1, exhaust, "exhaust");
-      let offset = 0;
-      for (const glyph of Array.from(SAUCER_LEFT)) {
-        stamp(saucerRow, position + SAUCER_OFFSET_LEFT + offset, glyph, "boat");
-        offset += 1;
-      }
-      offset = 0;
-      for (const glyph of Array.from(BODY_LEFT)) {
-        stamp(hullRow, position + offset, glyph, "boat");
-        offset += 1;
-      }
+      stampColored(saucerRow, position, TOP_LEFT, BODY_COLORS_LEFT);
+      stampColored(hullRow, position, BOTTOM_LEFT, BODY_COLORS_LEFT);
     }
     return [coalesce(saucerRow), coalesce(hullRow)];
   };
 
   const paintCompactShip = (width: number): CalmWorkingShipFrame => {
     const row = paintSky(width, 0);
-    const silhouette = direction >= 0 ? COMPACT_RIGHT : COMPACT_LEFT;
-    let offset = 0;
-    for (const glyph of Array.from(silhouette)) {
-      stamp(row, position + offset, glyph, "boat");
-      offset += 1;
-    }
-    const exhaustColumn = direction >= 0 ? position - 1 : position + COMPACT_WIDTH;
+    const travellingRight = direction >= 0;
+    const silhouette = travellingRight ? COMPACT_RIGHT : COMPACT_LEFT;
+    const colors = travellingRight ? COMPACT_COLORS_RIGHT : COMPACT_COLORS_LEFT;
+    stampColored(row, position, silhouette, colors);
+    const exhaustColumn = travellingRight ? position - 1 : position + COMPACT_WIDTH;
     stamp(row, exhaustColumn, exhaustGlyph(phase), "exhaust");
     return [coalesce(row)];
   };
