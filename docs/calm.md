@@ -8,15 +8,17 @@ It hides a block only when its raw text contains no newline and its trimmed leng
 
 ## Pi
 
-While Calm is active and an agent run is under way, Calm hides Pi's built-in `Working...` row and shows a small two-row animated boat in its place, and no separate Calm status row is added.
-The water fills the usable width with low one-cell Unicode bars, all in standard ANSI blue, so the swell shows through bar height alone.
-The Enterprise-inspired starship is a left-right symmetric front view: a three-cell `▟█▙` saucer is centered over the five-cell `▌▁█▁▐` hull row, whose outer cells are the paired nacelles around the central engineering hull.
-The whole ship, saucer, nacelles, and engineering hull, is one standard ANSI yellow, with the hull row's two zero-height gap cells keeping the swell continuous beneath the ship.
-The boat is deliberately calm: it moves one column every 880ms, while the long smooth wave advances one quarter-cell every 220ms so the surface stays alive between boat steps.
-Deterministically varied half-waves stay between nine and thirteen cells, and the boat remains phase-locked inside a broad zero-height trough through movement and edge reversals.
+While Calm is active and an agent run is under way, Calm hides Pi's built-in `Working...` row and shows a small two-row animated starship in its place, and no separate Calm status row is added.
+Twinkling stars fill the usable width in standard ANSI white, so the field stays alive through glyph choice alone.
+The Enterprise-inspired starship is a side-view silhouette that points in the travel direction: a two-cell saucer over a four-cell hull, with a pulsing exhaust at the rear.
+Travelling right the hull is `▀██►` with saucer `▄█` over the forward hull; travelling left it is `◄██▀` with saucer `█▄`.
+The whole ship is one standard ANSI yellow.
+The rear exhaust and its spark are one standard ANSI red.
+The ship is deliberately calm: it moves one column every 880ms, while the starfield twinkles and the exhaust pulses every 220ms so the sky stays alive between ship steps.
+Stars are placed by a deterministic hash of column, row, and tick, so the field reads as random without a non-replayable RNG.
 Every resize reflows the sprite without wrapping, and it disappears when the run settles, aborts, or fails.
-Within one Pi session and Calm extension lifetime, the next working period resumes the boat from its last rendered column and travel direction rather than restarting at the left edge.
-Hidden elapsed time does not advance the animation, and a resize while hidden clamps the frozen boat to the new width without changing its valid travel direction.
+Within one Pi session and Calm extension lifetime, the next working period resumes the ship from its last rendered column and travel direction rather than restarting at the left edge.
+Hidden elapsed time does not advance the animation, and a resize while hidden clamps the frozen ship to the new width without changing its valid travel direction.
 A fresh Pi session or new Calm extension lifetime starts at the normal initial position.
 Very narrow terminals fall back to a smaller deterministic sprite.
 While Calm is off, Pi's stock working row is left exactly as Pi renders it.
@@ -73,9 +75,9 @@ The trusted project auto-loads the mod through the `.claude/skills/firstmate-cal
 
 With the flag on, the mod registers `/calm`, which toggles the same per-home preference Pi's `/calm` uses, so one choice applies on both harnesses.
 The toggle answers with a transient "Calm on" or "Calm off" notice under the prompt rather than a transcript row, and a preference that cannot be written leaves the current choice unchanged and says so in that notice.
-While Calm is on, the stock working row (`Sauteing... (12s · 300 tokens)`) becomes the same two-row starship Pi draws, from the same shared sprite geometry: it fills the row inside the transcript margin, repaints on the boat's 220ms cadence with the hull moving every 880ms, reflows on resize, and appears and disappears exactly where the stock row would.
-On Claude Code the boat is painted in Claude Code's own theme colors rather than Pi's standard ANSI codes: every water cell takes the spinner blue of the active theme family (`#93a5ff` on a dark theme, `#5769f7` on a light one) and the whole ship, saucer, nacelles, and engineering hull, takes the Claude orange of the stock spinner (`#d77757`).
-The family follows the `theme` setting by its prefix, `dark` or `light`, is re-read when the theme changes, and uses the light set as the both-readable fallback for `auto`, custom, missing, or unreadable values; the Pi extension keeps its standard ANSI blue and yellow.
+While Calm is on, the stock working row (`Sauteing... (12s · 300 tokens)`) becomes the same two-row starship Pi draws, from the same shared sprite geometry: it fills the row inside the transcript margin, repaints on the ship's 220ms cadence with the hull moving every 880ms, reflows on resize, and appears and disappears exactly where the stock row would.
+On Claude Code the ship is painted in Claude Code's own theme colors rather than Pi's standard ANSI codes: stars take a readable slate of the active theme family (`#c5cde0` on a dark theme, `#5c6578` on a light one), the whole ship takes the Claude orange of the stock spinner (`#d77757`), and exhaust takes a warm jet red (`#ff6a3d` dark, `#c4471a` light).
+The family follows the `theme` setting by its prefix, `dark` or `light`, is re-read when the theme changes, and uses the light set as the both-readable fallback for `auto`, custom, missing, or unreadable values; the Pi extension keeps its standard ANSI white, yellow, and red.
 Tool rows, tool result blocks, and folded tool groups draw at zero height, so a turn that used tools takes the same space as one that did not.
 A user row whose text the canonical operational-input parser recognizes, a Firstmate session-start, watcher, turn-end guard, away-supervisor, launch-brief, or branch-outcome envelope, a from-firstmate routed message, or one of the narrow pre-protocol shapes kept for old transcripts, draws at zero height; every other user row, including near misses such as a quoted or ASCII-only marker, stays visible.
 Assistant text follows the shared per-block preservation rule above, including when `claude --continue` restores the transcript.

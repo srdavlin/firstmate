@@ -78,8 +78,18 @@ import { pathToFileURL } from "node:url";
 const pi = await import(pathToFileURL(${PI_SHIP@Q}).href);
 const core = await import(pathToFileURL(${MOD@Q} + "/lib/fm-calm-working-ship-sprite.ts").href);
 const ESC = "\\u001b";
-const ANSI = { water: ESC + "[34m", boat: ESC + "[33m" };
+const ANSI = { star: ESC + "[37m", boat: ESC + "[33m", exhaust: ESC + "[31m" };
 const RESET = ESC + "[39m";
+const COLORS = ["plain", "star", "boat", "exhaust"];
+const STAR = core.CALM_WORKING_SHIP_STAR_GLYPHS.join("");
+const EXHAUST = core.CALM_WORKING_SHIP_EXHAUST_GLYPHS.join("");
+const SPARK = core.CALM_WORKING_SHIP_EXHAUST_SPARK.join("");
+const BODY_RIGHT = core.CALM_WORKING_SHIP_BODY_RIGHT;
+const BODY_LEFT = core.CALM_WORKING_SHIP_BODY_LEFT;
+const SAUCER_RIGHT = core.CALM_WORKING_SHIP_SAUCER_RIGHT;
+const SAUCER_LEFT = core.CALM_WORKING_SHIP_SAUCER_LEFT;
+const COMPACT_RIGHT = core.CALM_WORKING_SHIP_COMPACT_RIGHT;
+const COMPACT_LEFT = core.CALM_WORKING_SHIP_COMPACT_LEFT;
 const paint = (row) => row.map((run) => (run.color === "plain" ? run.text : ANSI[run.color] + run.text + RESET)).join("");
 const cells = (row) => row.map((run) => run.text).join("");
 const check = (condition, message) => { if (!condition) throw new Error(message); };
@@ -97,24 +107,24 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
     check(animation.position() === sprite.position() && animation.direction() === sprite.direction() && animation.waterPhase() === sprite.waterPhase(), \`Pi animation state diverged at width \${width} step \${step}\`);
     if (width === 0) check(frame.length === 0, "zero width painted a row");
     if (width > 0) {
-      const water = frame[frame.length - 1];
-      check(cells(water).length === width, \`water row is \${cells(water).length} cells at width \${width}\`);
       for (const row of frame) {
-        check(cells(row).length <= width, \`a row overflowed width \${width}\`);
-        for (const run of row) check(["plain", "water", "boat"].includes(run.color), \`unknown color \${run.color}\`);
+        check(cells(row).length === width, \`a row is \${cells(row).length} cells at width \${width}\`);
+        for (const run of row) check(COLORS.includes(run.color), \`unknown color \${run.color}\`);
       }
       if (width >= 5) {
         check(frame.length === 2, \`width \${width} did not paint two rows\`);
-        check(JSON.stringify(frame[0].slice(1)) === JSON.stringify([{ text: "▟█▙", color: "boat" }]), "the saucer is not one boat-colored run");
-        check(frame[0][0].color === "plain" && /^ +$/.test(frame[0][0].text), "saucer padding is not plain spaces");
-        const hullAt = frame[1].findIndex((run) => run.text === "▌▁█▁▐");
-        check(hullAt >= 0, "the hull is not one run");
-        check(frame[1][hullAt].color === "boat", "the hull is not boat-colored");
-        check(frame[1].filter((_run, index) => index !== hullAt).every((run) => run.text.length === 1 && run.color === "water"), "water outside the hull is not one water-colored bar per cell");
+        const hull = cells(frame[1]);
+        const saucer = cells(frame[0]);
+        const travellingRight = sprite.direction() >= 0;
+        check(hull.includes(travellingRight ? BODY_RIGHT : BODY_LEFT), \`width \${width} lost the directional hull\`);
+        check(saucer.includes(travellingRight ? SAUCER_RIGHT : SAUCER_LEFT), \`width \${width} lost the directional saucer\`);
+        check(frame[1].some((run) => run.color === "boat" && run.text.includes(travellingRight ? BODY_RIGHT : BODY_LEFT)), "the hull body is not boat-colored");
+        check(frame[1].some((run) => run.color === "exhaust"), "the hull row lost its rear exhaust");
       } else if (width >= 3) {
-        check(frame.length === 1 && cells(frame[0]).includes("▟█▙"), \`width \${width} lost the saucer-only fallback\`);
+        const compact = cells(frame[0]);
+        check(frame.length === 1 && (compact.includes(COMPACT_RIGHT) || compact.includes(COMPACT_LEFT)), \`width \${width} lost the compact silhouette: \${compact}\`);
       } else {
-        check(frame.length === 1 && /^[▁▂▃▄]+$/.test(cells(frame[0])), \`width \${width} lost the water-only fallback\`);
+        check(frame.length === 1 && [...cells(frame[0])].every((glyph) => glyph === " " || STAR.includes(glyph)), \`width \${width} lost the starfield-only fallback: \${cells(frame[0])}\`);
       }
     }
     animation.tick();
@@ -138,38 +148,44 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
   sprite.reset();
   check(sprite.position() === 0 && sprite.direction() === 1 && sprite.waterPhase() === 0, "reset did not restore the initial state");
 }
-// The Enterprise-inspired art is a left-right symmetric front view, so it needs no mirrored
-// frame: each ship part keeps its exact glyphs in both travel directions, and the smallest
-// widths are exact because no water varies there.
+// The Enterprise-inspired art is a side-view silhouette that points with travel
+// direction, with rear exhaust and a starfield instead of water.
 {
-  const mirror = { "\u259f": "\u2599", "\u2599": "\u259f", "\u258c": "\u2590", "\u2590": "\u258c" };
-  const reflect = (text) => Array.from(text).reverse().map((glyph) => mirror[glyph] ?? glyph).join("");
-  const saucer = core.CALM_WORKING_SHIP_SAUCER;
-  const hull = core.CALM_WORKING_SHIP_HULL;
-  check(Array.from(saucer).length === 3 && Array.from(hull).length === 5, "the starship is not a three-cell saucer over a five-cell hull row");
-  check(reflect(saucer) === saucer && reflect(hull) === hull, "the starship is not left-right symmetric");
-  check(Array.from(hull)[0] !== Array.from(hull)[2] && Array.from(hull)[0] === reflect(Array.from(hull)[4]), "the hull row lost its paired nacelles around a distinct engineering hull");
+  check(Array.from(SAUCER_RIGHT).length === 2 && Array.from(BODY_RIGHT).length === 4, "the starship is not a two-cell saucer over a four-cell hull body");
+  check(Array.from(SAUCER_LEFT).reverse().join("") === SAUCER_RIGHT, "the left saucer is not the right saucer reversed");
+  check(BODY_RIGHT.endsWith("►") && BODY_LEFT.startsWith("◄"), "the hull body does not point in the travel direction");
   const sprite = core.createCalmWorkingShipSprite();
-  const seen = new Set();
+  const seenBodies = new Set();
+  const seenSaucers = new Set();
   const directions = new Set();
   for (let step = 0; step < 4 * 12 * 3; step += 1) {
     const frame = sprite.frame(17);
     directions.add(sprite.direction());
-    seen.add(cells(frame[0]).trim());
-    seen.add(frame[1].find((run) => run.color === "boat").text);
+    const hull = cells(frame[1]);
+    const saucer = cells(frame[0]);
+    if (hull.includes(BODY_RIGHT)) seenBodies.add(BODY_RIGHT);
+    if (hull.includes(BODY_LEFT)) seenBodies.add(BODY_LEFT);
+    if (saucer.includes(SAUCER_RIGHT)) seenSaucers.add(SAUCER_RIGHT);
+    if (saucer.includes(SAUCER_LEFT)) seenSaucers.add(SAUCER_LEFT);
+    check(frame[1].some((run) => run.color === "exhaust" && [...run.text].some((glyph) => EXHAUST.includes(glyph))), "a full-width frame lost rear exhaust");
     sprite.tick();
   }
   check(directions.size === 2, "the sweep never travelled both directions");
-  check(JSON.stringify([...seen].sort()) === JSON.stringify([hull, saucer].sort()), \`the ship changed shape while travelling: \${JSON.stringify([...seen])}\`);
+  check(seenBodies.has(BODY_RIGHT) && seenBodies.has(BODY_LEFT), \`the hull never faced both ways: \${JSON.stringify([...seenBodies])}\`);
+  check(seenSaucers.has(SAUCER_RIGHT) && seenSaucers.has(SAUCER_LEFT), \`the saucer never faced both ways: \${JSON.stringify([...seenSaucers])}\`);
   const exact = core.createCalmWorkingShipSprite();
-  check(JSON.stringify(exact.frame(5).map(cells)) === JSON.stringify([" " + saucer, hull]), "the minimum full-ship frame is not the saucer over the hull row");
-  check(JSON.stringify(exact.frame(3).map(cells)) === JSON.stringify([saucer]) && JSON.stringify(exact.frame(4).map(cells)) === JSON.stringify([saucer + "\u2581"]) , "the narrow fallback is not the saucer riding the water row");
+  const full = exact.frame(5).map(cells);
+  check(full[0].includes(SAUCER_RIGHT) && full[1].includes(BODY_RIGHT), "the minimum full-ship frame lost the right-facing silhouette");
+  check(full[1].includes(core.CALM_WORKING_SHIP_EXHAUST_GLYPHS[0]), "the minimum full-ship frame lost its exhaust pulse");
+  const compact = exact.frame(3).map(cells);
+  check(JSON.stringify(compact) === JSON.stringify([COMPACT_RIGHT]), \`the compact fallback is not the three-cell silhouette: \${JSON.stringify(compact)}\`);
+  check(SPARK.length === 4 && EXHAUST.length === 4, "exhaust pulse tables drifted");
 }
 console.log("sprite-ok frames=" + frames);
 JS
   out=$(run_node "$TMP_ROOT/sprite.mjs" 2>&1) || fail "shared sprite: $out"
   assert_contains "$out" "sprite-ok frames=533" "the sprite parity sweep did not cover every width and step"
-  pass "the Pi working ship renders byte-for-byte the shared sprite core's frame painted in standard ANSI, at every width, cadence step, freeze, clamp, and reset, and keeps one left-right symmetric Enterprise-inspired starship shape in both travel directions"
+  pass "the Pi working ship renders byte-for-byte the shared sprite core's frame painted in standard ANSI, at every width, cadence step, freeze, clamp, and reset, and keeps a directional side-view Enterprise with rear exhaust and a starfield in both travel directions"
 }
 
 test_raster_packing() {
@@ -198,10 +214,10 @@ const decode = (cells, columns, rows) => {
   }
   return grid;
 };
-// Claude Code's own theme tables: spinner blue water per family, Claude orange boat.
+// Stars, boat, and exhaust per theme family; boat stays Claude orange.
 const palettes = raster.CALM_SHIP_RASTER_PALETTES;
-check(palettes.dark.water === 0x93a5ff && palettes.dark.boat === 0xd77757, "dark palette is not Claude Code's dark spinner blue and Claude orange");
-check(palettes.light.water === 0x5769f7 && palettes.light.boat === 0xd77757, "light palette is not Claude Code's light spinner blue and Claude orange");
+check(palettes.dark.star === 0xc5cde0 && palettes.dark.boat === 0xd77757 && palettes.dark.exhaust === 0xff6a3d, "dark palette is not slate stars, Claude orange boat, and jet exhaust");
+check(palettes.light.star === 0x5c6578 && palettes.light.boat === 0xd77757 && palettes.light.exhaust === 0xc4471a, "light palette is not slate stars, Claude orange boat, and jet exhaust");
 check(palettes.dark.plain === raster.CALM_SHIP_RASTER_DEFAULT_COLOR && palettes.light.plain === raster.CALM_SHIP_RASTER_DEFAULT_COLOR, "plain padding is not the terminal default");
 for (const [theme, family] of [["dark", "dark"], ["dark-ansi", "dark"], ["dark-daltonized", "dark"], ["light", "light"], ["light-ansi", "light"], ["light-daltonized", "light"], ["auto", "light"], ["custom:rose", "light"], [undefined, "light"], [42, "light"], ["", "light"]]) {
   check(raster.calmShipPaletteFamily(theme) === family, \`theme \${JSON.stringify(theme)} chose \${raster.calmShipPaletteFamily(theme)}, not \${family}\`);
@@ -234,15 +250,15 @@ for (const [family, colors] of Object.entries(palettes)) for (const width of [1,
 }
 // The packer's pre-load default is the both-readable light fallback.
 {
-  const packed = raster.packCalmShipRasterCells([[{ text: "▁", color: "water" }]], 1);
-  check(decode(packed.cells, 1, 1)[0][0].fg === palettes.light.water, "the default packing palette is not the light fallback");
+  const packed = raster.packCalmShipRasterCells([[{ text: "*", color: "star" }]], 1);
+  check(decode(packed.cells, 1, 1)[0][0].fg === palettes.light.star, "the default packing palette is not the light fallback");
 }
 // A run wider than the grid is clipped, never wrapped into the next row.
 {
-  const packed = raster.packCalmShipRasterCells([[{ text: "▁▁▁▁▁▁▁▁", color: "water" }], [{ text: "▟█▙", color: "boat" }]], 4);
+  const packed = raster.packCalmShipRasterCells([[{ text: "********", color: "star" }], [{ text: "▄█►", color: "boat" }]], 4);
   check(packed.rows === 2, "clip changed the row count");
   const grid = decode(packed.cells, 4, 2);
-  check(grid[0].map((c) => c.glyph).join("") === "▁▁▁▁" && grid[1].map((c) => c.glyph).join("") === "▟█▙ ", "clip wrapped or dropped cells");
+  check(grid[0].map((c) => c.glyph).join("") === "****" && grid[1].map((c) => c.glyph).join("") === "▄█► ", "clip wrapped or dropped cells");
 }
 check(raster.packCalmShipRasterCells([], 3).rows === 1, "an empty frame did not pack one blank row");
 check(raster.calmShipRasterColumns(undefined) === 78, "unmeasured viewport width");

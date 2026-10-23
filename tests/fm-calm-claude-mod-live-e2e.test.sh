@@ -33,8 +33,10 @@ DEBUG_LOG_ON="$LAB/debug-on.log"
 DEBUG_LOG_RESUME="$LAB/debug-resume.log"
 SOCKET="fm-calm-claude-$$"
 SESSION="fm-calm-claude-e2e"
-HULL='▌▁█▁▐'
-SAUCER='▟█▙'
+HULL='▀██►'
+HULL_LEFT='◄██▀'
+SAUCER='▄█'
+SAUCER_LEFT='█▄'
 
 cleanup() {
   local i=0
@@ -163,7 +165,15 @@ command_listed() {  # <command>
 }
 
 hull_column() {  # <screen text>
-  printf '%s\n' "$1" | awk -v hull="$HULL" 'index($0, hull) { print index($0, hull); exit }'
+  printf '%s\n' "$1" | awk 'match($0, /▀██►|◄██▀/) { print RSTART; exit }'
+}
+
+ship_shown() {  # <screen text>
+  printf '%s\n' "$1" | grep -Eq '▀██►|◄██▀'
+}
+
+saucer_shown() {  # <screen text>
+  printf '%s\n' "$1" | grep -Eq '▄█|█▄'
 }
 
 # The answer names words that live only in notes.txt, so the settled turn is told apart
@@ -190,11 +200,8 @@ wait_settled() {  # <what> [iterations]
         fail "Claude Code $CLAUDE_VERSION exited while waiting for $what"
         ;;
       *'gamma'*)
-        if ! working_row_shown "$shot"; then
-          case "$shot" in
-            *"$HULL"*) ;;
-            *) return 0 ;;
-          esac
+        if ! working_row_shown "$shot" && ! ship_shown "$shot"; then
+          return 0
         fi
         ;;
     esac
@@ -225,7 +232,7 @@ i=0
 while [ "$i" -lt 600 ]; do
   off_frame=$(screen)
   case "$off_frame" in
-    *"$HULL"*|*"$SAUCER"*)
+    *"$HULL"*|*"$HULL_LEFT"*|*"$SAUCER"*|*"$SAUCER_LEFT"*)
       printf '%s\n' "$off_frame" >&2
       fail "the working ship appeared although the flag is unset"
       ;;
@@ -279,13 +286,14 @@ send "$PROMPT"
 enter
 wait_screen "$HULL" 'the working ship during a real turn' 200
 boat_one=$(screen)
-case "$boat_one" in
-  *"$SAUCER"*) : ;;
-  *)
-    printf '%s\n' "$boat_one" >&2
-    fail "the working ship lost its saucer"
-    ;;
-esac
+if ! ship_shown "$boat_one"; then
+  printf '%s\n' "$boat_one" >&2
+  fail "the working ship lost its hull"
+fi
+if ! saucer_shown "$boat_one"; then
+  printf '%s\n' "$boat_one" >&2
+  fail "the working ship lost its saucer"
+fi
 column_one=$(hull_column "$boat_one")
 column_two=$column_one
 i=0
@@ -303,7 +311,7 @@ done
 wait_settled 'the turn with the flag on'
 on_settled=$(screen)
 case "$on_settled" in
-  *"$HULL"*|*"$SAUCER"*) fail "the working ship stayed on screen after the turn settled" ;;
+  *"$HULL"*|*"$HULL_LEFT"*|*"$SAUCER"*|*"$SAUCER_LEFT"*) fail "the working ship stayed on screen after the turn settled" ;;
   *'Bash('*|*'shell command'*|*'notes.txt)'*)
     printf '%s\n' "$on_settled" >&2
     fail "a tool row drew while Calm was on"
