@@ -35,12 +35,15 @@ import {
 export { CALM_WORKING_SHIP_TICK_MS, CALM_WORKING_SHIP_TICKS_PER_MOVE };
 
 // Standard ANSI foreground codes only: no theme lookup, bright variant, or 256/RGB.
-// Stars are a single white so the twinkle reads through glyph choice alone; the ship is
-// a single yellow so saucer, nacelle, hull, and nose never split into mismatched colors;
-// exhaust is a single red so the rear pulse reads as propulsion rather than hull.
+// Stars are a single white so the twinkle reads through glyph choice alone; the saucer
+// and neck are white so the disk reads as grey; nacelles are cyan so they read as
+// light-blue; the bridge oval is black; exhaust is a single red so the rear pulse
+// reads as propulsion rather than hull.
 const ANSI_FOREGROUND: Record<Exclude<CalmWorkingShipColor, "plain">, string> = {
   star: "\u001b[37m",
-  boat: "\u001b[33m",
+  hull: "\u001b[37m",
+  nacelle: "\u001b[36m",
+  bridge: "\u001b[30m",
   exhaust: "\u001b[31m",
 };
 // Restores the default foreground so color never bleeds into padding or later frames.

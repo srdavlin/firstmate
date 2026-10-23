@@ -4,16 +4,25 @@
 import { describe, expect, test } from "claude-code/testing";
 import { calmCommand, decodeCells, isStock, rasterOf, spinner, themeChange, unmeasuredSpinner, world } from "./support.ts";
 
-const SAUCER = "▄█";
-const BODY = "▀██►";
+const SAUCER = "▄██▄";
+const BODY = "▄─▀██▀";
+const BODY_LEFT = "▀██▀─▄";
+const COMPACT = "▄─█";
 const DEFAULT = 0x01000000;
 const DARK_STAR = 0xc5cde0;
 const LIGHT_STAR = 0x5c6578;
 const DARK_EXHAUST = 0xff6a3d;
 const LIGHT_EXHAUST = 0xc4471a;
-const BOAT = 0xd77757;
+const DARK_HULL = 0xb7bec8;
+const LIGHT_HULL = 0x5c6570;
+const DARK_NACELLE = 0x6ec4e0;
+const LIGHT_NACELLE = 0x1a7aa3;
+const DARK_BRIDGE = 0x3a4250;
+const LIGHT_BRIDGE = 0x2c333d;
 const TICK = 220;
 const TICKS_PER_MOVE = 4;
+const DARK_SHIP = [DARK_HULL, DARK_NACELLE, DARK_BRIDGE, DARK_EXHAUST] as const;
+const LIGHT_SHIP = [LIGHT_HULL, LIGHT_NACELLE, LIGHT_BRIDGE, LIGHT_EXHAUST] as const;
 const SKY = [DEFAULT, DARK_STAR, DARK_EXHAUST] as const;
 const LIGHT_SKY = [DEFAULT, LIGHT_STAR, LIGHT_EXHAUST] as const;
 
@@ -28,15 +37,15 @@ describe("the working ship", () => {
     const { glyphs, foregrounds, backgrounds } = decodeCells(raster!.cells, 38, 2);
     expect(glyphs[0]).toHaveLength(38);
     expect(glyphs[1]).toHaveLength(38);
-    // The boat starts at the left edge: exhaust then hull body, saucer over the forward hull.
+    // The boat starts at the left edge: glow, twin nacelles, neck, then the round saucer.
     expect(glyphs[1]!.indexOf(BODY)).toBe(1);
-    expect(glyphs[0]!.indexOf(SAUCER)).toBe(2);
+    expect(glyphs[0]!.indexOf(SAUCER)).toBe(3);
     expect(foregrounds[1]![0]).toBe(DARK_EXHAUST);
-    expect(foregrounds[1]!.slice(1, 5)).toEqual([BOAT, BOAT, BOAT, BOAT]);
-    expect(foregrounds[0]!.slice(2, 4)).toEqual([BOAT, BOAT]);
-    expect(foregrounds[0]!.slice(4).every((color) => color === DEFAULT || color === DARK_STAR)).toBe(true);
-    expect(foregrounds[1]!.slice(5).every((color) => color === DEFAULT || color === DARK_STAR)).toBe(true);
-    expect(glyphs[0]!.slice(4) + glyphs[1]!.slice(5)).toMatch(/[.*+·]/);
+    expect(foregrounds[1]!.slice(1, 7)).toEqual([DARK_NACELLE, DARK_HULL, DARK_HULL, DARK_BRIDGE, DARK_BRIDGE, DARK_HULL]);
+    expect(foregrounds[0]!.slice(1, 7)).toEqual([DARK_NACELLE, DARK_HULL, DARK_HULL, DARK_BRIDGE, DARK_BRIDGE, DARK_HULL]);
+    expect(foregrounds[0]!.slice(7).every((color) => color === DEFAULT || color === DARK_STAR)).toBe(true);
+    expect(foregrounds[1]!.slice(7).every((color) => color === DEFAULT || color === DARK_STAR)).toBe(true);
+    expect(glyphs[0]!.slice(7) + glyphs[1]!.slice(7)).toMatch(/[.*+·]/);
     expect(backgrounds.flat().every((color) => color === DEFAULT)).toBe(true);
   });
 
@@ -96,7 +105,7 @@ describe("the working ship", () => {
     const narrow = rasterOf(await $.ui.render(spinner("c", { columns: 5, rows: 40 })))!;
     expect(narrow.columns).toBe(3);
     expect(narrow.rows).toBe(1);
-    expect(decodeCells(narrow.cells, 3, 1).glyphs[0]).toBe("▄█►");
+    expect(decodeCells(narrow.cells, 3, 1).glyphs[0]).toBe(COMPACT);
     const tiny = rasterOf(await $.ui.render(spinner("d", { columns: 2, rows: 40 })))!;
     expect(tiny.columns).toBe(1);
     expect(tiny.rows).toBe(1);
@@ -112,7 +121,7 @@ describe("the working ship", () => {
     expect(wide.glyphs[1]!.indexOf(BODY)).toBe(7);
     const shrunk = rasterOf(await $.ui.render(spinner("agent-main", { columns: 12, rows: 24 })))!;
     expect(shrunk.columns).toBe(10);
-    expect(decodeCells(shrunk.cells, 10, 2).glyphs[1]!.indexOf("◄██▀")).toBe(5);
+    expect(decodeCells(shrunk.cells, 10, 2).glyphs[1]!.indexOf(BODY_LEFT)).toBe(3);
     await clock.advance(TICK);
     expect(journal.blits.at(-1)).toMatchObject({ columns: 10, rows: 2 });
   });
@@ -125,13 +134,13 @@ describe("the working ship", () => {
     expect(journal.blits).toHaveLength(0);
   });
 
-  test("paints the light theme family's slate stars, jet exhaust, and the same Claude orange boat", async ($, on) => {
+  test("paints the light theme family's slate stars, grey hull, light-blue nacelles, dark bridge, and jet exhaust", async ($, on) => {
     world(on, { preference: "on\n", theme: "light" });
     const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })))!;
     const { foregrounds } = decodeCells(raster.cells, 38, 2);
     expect(foregrounds[1]![0]).toBe(LIGHT_EXHAUST);
-    expect(foregrounds[1]!.slice(1, 5)).toEqual([BOAT, BOAT, BOAT, BOAT]);
-    expect(foregrounds[1]!.slice(5).every((color) => color === LIGHT_STAR || color === DEFAULT)).toBe(true);
+    expect(foregrounds[1]!.slice(1, 7)).toEqual([LIGHT_NACELLE, LIGHT_HULL, LIGHT_HULL, LIGHT_BRIDGE, LIGHT_BRIDGE, LIGHT_HULL]);
+    expect(foregrounds[1]!.slice(7).every((color) => color === LIGHT_STAR || color === DEFAULT)).toBe(true);
   });
 
   // Each theme value needs its own world, so the family rule gets one test per value.
@@ -149,9 +158,10 @@ describe("the working ship", () => {
       const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })))!;
       const { foregrounds } = decodeCells(raster.cells, 38, 2);
       const sky = family === "dark" ? SKY : LIGHT_SKY;
-      expect(foregrounds[1]!.slice(5).every((color) => color === expected || color === DEFAULT)).toBe(true);
-      expect(foregrounds[1]!.every((color) => sky.includes(color as never) || color === BOAT)).toBe(true);
-      expect(foregrounds[1]![1]).toBe(BOAT);
+      const ship = family === "dark" ? DARK_SHIP : LIGHT_SHIP;
+      expect(foregrounds[1]!.slice(7).every((color) => color === expected || color === DEFAULT)).toBe(true);
+      expect(foregrounds[1]!.every((color) => sky.includes(color as never) || ship.includes(color as never))).toBe(true);
+      expect(foregrounds[1]![1]).toBe(ship[1]);
     });
   }
 

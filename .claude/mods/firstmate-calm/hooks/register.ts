@@ -22,7 +22,7 @@
 // classifier recognizes draws as zero height; an `AssistantMessage` block recorded as a
 // mid-turn working note draws as zero height. Calm off returns every drawing to the
 // engine. A toggle invalidates every hooked drawing, so rows already on screen redraw.
-// The boat is painted in Claude Code's own theme colors: the family is read from the
+// The ship is painted in Claude Code's own theme colors: the family is read from the
 // `theme` setting at load and re-read when a `config.set` changes it.
 //
 // Loading is lazy and cached within a session: a resumed transcript or a hot reload can

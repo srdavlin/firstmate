@@ -160,19 +160,19 @@ Pi emits `agent_settled` from a `finally` block once a run will not continue aut
 Repeated `agent_start` events inside one run are idempotent, and Pi disposes the previous component before installing a replacement under the same key and when it clears extension widgets, so the frame timer cannot duplicate or outlive the widget.
 Pi's above-editor widget container reserves one spacer row whether or not a widget is present, so removing the ship leaves no residual blank row.
 
-The sprite is two rows when the usable width admits the complete five-cell ship: a two-cell saucer over a four-cell hull body, with a one-cell pulsing exhaust at the rear, pointing in the travel direction.
-Travelling right the hull is `▀██►` with saucer `▄█` over the forward hull; travelling left it is `◄██▀` with saucer `█▄`.
-A one-cell spark sits over the exhaust on the saucer row.
+The sprite is two rows when the usable width admits the complete seven-cell ship: a four-cell round saucer with a dark two-cell bridge oval, a thin neck, twin nacelles, and a one-cell pulsing glow at the rear of each nacelle, flying with the saucer leading.
+Travelling right the lower hull is `▄─▀██▀` with saucer `▄██▄` leading; travelling left it is `▀██▀─▄` with the same saucer leading.
+A one-cell spark sits over the top nacelle glow on the saucer row.
 The sky fills both rows with a sparse deterministic starfield of `.`, `·`, `+`, and `*`, so the ship flies through stars rather than sitting in water.
 Direction reverses the moment the ship lands on an endpoint, so the endpoint frame itself already carries the new heading.
-The sky fills the complete supplied width, the track is recomputed and clamped from that width on every frame so a resize cannot wrap or strand the ship offscreen, and widths too narrow for the hull fall back to a deterministic single row: a three-cell compact silhouette at three and four cells, and starfield only below that.
+The sky fills the complete supplied width, the track is recomputed and clamped from that width on every frame so a resize cannot wrap or strand the ship offscreen, and widths too narrow for the hull fall back to a deterministic single row: a three-cell compact silhouette at three through six cells, and starfield only below that.
 
 One scheduler drives two linked cadences.
 Every tick twinkles the starfield and pulses the rear exhaust, and only every fourth tick moves the boat one whole cell, so at a 220ms tick the ship travels one cell per 880ms while stars and exhaust stay alive between steps.
 Ticks rather than wall-clock timestamps drive every state change, so tests seek animation time exactly, and disposing the widget stops both cadences together.
 Star placement is a deterministic hash of column, row, and tick, so the field reads as random without a non-replayable RNG, and every glyph is one terminal column under both harnesses' width rules.
 
-Colors are standard ANSI foreground codes rather than theme lookups: stars are white, the whole ship (saucer, nacelle, hull, and nose) is one yellow, and exhaust plus spark are one red, with no bright variant, 256-color, or RGB escape.
+Colors are standard ANSI foreground codes rather than theme lookups: stars and the grey saucer and neck are white, nacelles are cyan, the bridge oval is black, and exhaust plus spark are one red, with no bright variant, 256-color, or RGB escape.
 Each colored run is closed with a default-foreground reset so styling cannot bleed into the saucer row's padding, neighbouring UI, or a later frame, and geometry is always computed from visible cells rather than escape bytes.
 
 The presentation is TUI-only and visual-only.
@@ -815,3 +815,45 @@ width 5     width 4    width 3    width 2
 ```
 
 `tests/fm-calm-claude-mod.test.sh` pins the directional hull and saucer, rear exhaust, starfield fallback, and Pi-versus-core parity, `tests/fm-calm-pi-extension.test.sh`'s working-ship geometry case pins ANSI white/yellow/red and freeze/resume of column, direction, and pulse phase, and `.claude/mods/firstmate-calm/tests/working-ship.test.ts` pins the Claude Code Raster palettes.
+The follow-up below replaced this side-view silhouette with a top-down Constitution-class look.
+
+## 2026-10-23 Constitution-class top-down look
+
+The working sprite's art changed from the side-view silhouette to a top-down Constitution-class Enterprise that flies with the saucer leading, with no change to its cadence, track, clipping, freeze and resume, preferences, hooks, or monitoring.
+The shared sprite module `.claude/mods/firstmate-calm/lib/fm-calm-working-ship-sprite.ts` owns the art, so Pi's widget and the Claude Code Raster pick it up from the same frame.
+The complete ship is seven cells: rear glow, twin nacelles, a thin neck, and a four-cell round saucer with a dark two-cell bridge oval.
+Travelling right the lower hull is `▄─▀██▀` with saucer `▄██▄` leading; travelling left it is `▀██▀─▄` with the same saucer leading.
+Narrow terminals fall back to a three-cell compact silhouette at three through six cells, and to starfield only below that.
+Pi paints stars and the grey hull standard ANSI white, nacelles standard cyan, the bridge oval standard black, and exhaust standard red.
+Claude Code paints slate stars, a grey hull, light-blue nacelles, a dark bridge oval, and jet-red exhaust per theme family, as `docs/calm.md` records.
+The glyphs are one column wide under both harnesses' width rules, confirmed with the installed Pi 1.4.0 `visibleWidth`.
+
+Frames rendered through Pi's real `createCalmWorkingShipAnimation()` and measured with that `visibleWidth`, with ANSI stripped.
+Pipes mark row bounds and are not painted.
+Ticks 0, 4, and 8 at 40 columns (the ship moves one column per four ticks), then the right-edge bounce at 12 columns, then the narrow widths:
+
+```text
+tick 0
+|·▀─▄██▄ .    +         *        * ·    *|
+|·▄─▀██▀·    +   +  +.  +    +  *        |
+tick 4
+| ·▀─▄██▄+           *  ·        · *     |
+| ·▄─▀██▀       ·. *.+     · .  ·        |
+tick 8
+|  ·▀─▄██▄    +      ·  *          ·    *|
+|  ·▄─▀██▀   +  *+ ·+   +  * +  *        |
+```
+
+```text
+width 12 bounce, travelling left
+| ·  ▄██▄─▀· |
+|    ▀██▀─▄· |
+```
+
+```text
+width 7     width 6    width 3    width 2
+|·▀─▄██▄|   |▄─█   |   |▄─█|      | ·|
+|·▄─▀██▀|
+```
+
+`tests/fm-calm-claude-mod.test.sh` pins the round saucer, twin nacelles, directional hull, rear glow, starfield fallback, and Pi-versus-core parity, `tests/fm-calm-pi-extension.test.sh`'s working-ship geometry case pins ANSI white/cyan/black/red and freeze/resume of column, direction, and pulse phase, and `.claude/mods/firstmate-calm/tests/working-ship.test.ts` pins the Claude Code Raster palettes.
