@@ -4299,7 +4299,7 @@ test_send_text_submit_confirms_blocked_after_enter() {
 test_send_text_submit_preexisting_working_pending_is_queued_enter() {
   local dir log resp fb out enter_count
   dir="$TMP_ROOT/submit-preexisting-working-queued"; mkdir -p "$dir/responses"; log="$dir/log"; resp="$dir/responses"; : > "$log"
-  # Native working + proven pending after the retry budget is the OpenCode
+  # Native working + proven pending after the retry budget is the
   # busy-queued Enter: the harness accepted Enter and will submit when the
   # current turn ends. Footer transition is not the confirmation path here
   # because the pre-Enter native status is already working.
