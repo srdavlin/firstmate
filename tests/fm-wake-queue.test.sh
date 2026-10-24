@@ -507,7 +507,7 @@ SH
 # never does - bin/fm-spawn.sh arms the contract inside its `[ "$KIND" !=
 # secondmate ]` guard, so both arm calls are skipped for a mate - and with no
 # record fm_busy_classify_meta answers "unknown missing" for a tmux-backed
-# claude, pi, opencode, or omp mate, which is not a busy verdict. Hand-arming is
+# claude, pi, or omp mate, which is not a busy verdict. Hand-arming is
 # what isolates the launch-aging defect this case pins, and the launch-aging
 # defect is all it pins: on tmux the stall alarm is still reachable through that
 # missing busy record, tracked upstream as issue 4268.

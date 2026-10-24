@@ -87,7 +87,7 @@ test_repair_lines() {
   assert_contains "$out" "source '$home/config/x-mode.env' first" "x-mode repair line did not source the effective cadence config"
   assert_contains "$out" "bin/fm-watch-checkpoint.sh --seconds 7" "x-mode codex repair line lost the checkpoint helper"
 
-  out=$(FM_HOME="$home" "$RENDER" --harness opencode --read-only 1 --repair-line)
+  out=$(FM_HOME="$home" "$RENDER" --harness claude --read-only 1 --repair-line)
   assert_contains "$out" "session holding the fleet lock" "read-only repair line missing"
 
   out=$(FM_HOME="$home" "$RENDER" --harness pi --repair-line)
@@ -121,12 +121,14 @@ test_cross_harness_ordinary_continuation_and_repair_matrix() {
   out=$("$RENDER" --harness omp --repair-line)
   assert_contains "$out" "fm_watch_arm_omp" "omp recovery line lost the extension-owned repair tool"
 
+  # A retired adapter name is not a verified harness, so the renderer must
+  # degrade it to the generic unknown treatment rather than guessing at it.
   out=$("$RENDER" --harness opencode)
+  assert_contains "$out" "primary harness: unknown" "a retired harness name must render as unknown, not guessed at"
   ordinary=$(printf '%s\n' "$out" | grep -F -- '- Ordinary wake:')
-  assert_contains "$ordinary" "plugin already owns watcher continuity" "opencode ordinary-wake line does not leave continuity to the plugin"
-  assert_not_contains "$ordinary" "bin/fm-watch-arm.sh" "opencode ordinary-wake line incorrectly calls the recovery probe"
+  assert_contains "$ordinary" "follow the continuation in the harness protocol below" "a retired harness name must use the generic ordinary-wake line"
   out=$("$RENDER" --harness opencode --repair-line)
-  assert_contains "$out" "manual recovery probe" "opencode recovery line lost its manual probe"
+  assert_contains "$out" "according to the session-start block for this harness" "a retired harness name must use the generic repair line"
 
   out=$("$RENDER" --harness claude)
   ordinary=$(printf '%s\n' "$out" | grep -F -- '- Ordinary wake:')
