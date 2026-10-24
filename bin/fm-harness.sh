@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Detect the agent harness this process tree runs on.
-# Usage: fm-harness.sh                  print own harness: claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|omp|agy|unknown
+# Usage: fm-harness.sh                  print own harness: claude|codex|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|omp|agy|unknown
 #        fm-harness.sh crew             print the effective CREWMATE harness
 #                                        (config/crew-harness; "default" resolves to own)
 #        fm-harness.sh secondmate       print the harness the PRIMARY uses to launch
@@ -133,7 +133,7 @@ harness_marker() {
   # identified, and any rule that must be RELIABLE under grok has to test the hook
   # markers too (see .claude/settings.json Stop entries, docs/turnend-guard.md).
   [ "${GROK_AGENT:-}" = "1" ] && { echo grok; return; }
-  # codex, opencode, kimi, muse, and agy publish no harness-identity marker at all, so
+  # codex, kimi, muse, and agy publish no harness-identity marker at all, so
   # they are never named here and are identified by ancestry alone. That is the
   # whole reason a foreign marker must not outrank ancestry: with markers winning
   # unconditionally, any retained CLAUDECODE would silently rename one of them.
@@ -195,7 +195,6 @@ harness_process_verdict() {  # <pid>
     # command carrying a harness name in its arguments claim an identity.
     *claude*) echo "comm claude"; return ;;
     *codex*) echo "comm codex"; return ;;
-    *opencode*) echo "comm opencode"; return ;;
     *grok*) echo "comm grok"; return ;;
     kimi) echo "comm kimi"; return ;;
     rovo) echo "comm rovo"; return ;;
@@ -238,7 +237,6 @@ harness_process_verdict() {  # <pid>
       case "$args" in
         *claude*) echo "args claude"; return ;;
         *codex*) echo "args codex"; return ;;
-        *opencode*) echo "args opencode"; return ;;
         *grok*) echo "args grok"; return ;;
         *" pi "*|*/pi) echo "args pi"; return ;;
       esac ;;
@@ -389,7 +387,7 @@ harness_family() {
 #     (pi-signed, which ancestry can only see as pi).
 #   - Different harness, structural ancestor: ancestry wins. This is what stops
 #     an inherited or multiplexer-retained CLAUDECODE from renaming a markerless
-#     codex, opencode, kimi, or muse session, and symmetrically stops a retained
+#     codex, kimi, or muse session, and symmetrically stops a retained
 #     CURSOR_AGENT from renaming a claude worker nested under cursor.
 #   - Different harness, interpreter-args ancestor only: the marker wins, because
 #     a harness-shaped path in some node process's arguments is weaker evidence

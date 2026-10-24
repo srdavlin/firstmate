@@ -35,7 +35,7 @@ mkdir -p "$TMP_ROOT"
 TMP_ROOT=$(cd "$TMP_ROOT" && pwd)
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-VERIFIED_HARNESSES="claude codex opencode pi pi-signed grok kimi cursor muse omp"
+VERIFIED_HARNESSES="claude codex pi pi-signed grok kimi cursor muse omp"
 
 # The expectation table, written out independently of the implementation so a
 # silent change to either side shows up here. The fourth field is the composer
@@ -45,7 +45,6 @@ verified_adapter_contract() {  # <harness> -> exit command, interrupt key, repea
   case "$1" in
     claude) printf '/exit\tEscape\t1\t\n' ;;
     codex) printf '/quit\tEscape\t1\t\n' ;;
-    opencode) printf '/exit\tEscape\t2\t\n' ;;
     pi) printf '/quit\tEscape\t1\t\n' ;;
     pi-signed) printf '/quit\tEscape\t1\t\n' ;;
     omp) printf '/quit\tEscape\t1\t\n' ;;
@@ -266,7 +265,7 @@ test_interrupt_sends_each_harness_verified_key() {
 test_harness_family_resolution() {
   local pair recorded want got
   for pair in claude:claude claude-latest:claude codex:codex codex-cli:codex \
-      opencode:opencode grok:grok grok-2:grok kimi:kimi cursor:cursor \
+      grok:grok grok-2:grok kimi:kimi cursor:cursor \
       cursor-agent:cursor muse:muse muse-bin-0.1.0:muse pi:pi \
       pi-signed:pi-signed omp:omp; do
     recorded=${pair%%:*}
@@ -314,25 +313,6 @@ test_prefixed_recorded_harness_reaches_each_control_verb() {
   pass "fm-control: prefixed recorded harnesses reach interrupt and exit mechanics"
 }
 
-test_opencode_interrupts_twice_and_others_once() {
-  # The one adapter that differs, asserted through the delivered keys rather
-  # than the table, so a regression in either shows up here.
-  local dir
-  dir=$(new_case int-double)
-  add_task "$dir" t1 opencode
-  alive_as "$dir" opencode
-  run_control "$dir" t1 interrupt >/dev/null
-  [ "$(keys_sent "$dir" | wc -l | tr -d ' ')" = 2 ] \
-    || fail "opencode should receive a double Escape"
-  dir=$(new_case int-single)
-  add_task "$dir" t1 claude
-  alive_as "$dir" claude
-  run_control "$dir" t1 interrupt >/dev/null
-  [ "$(keys_sent "$dir" | wc -l | tr -d ' ')" = 1 ] \
-    || fail "claude should receive a single Escape"
-  pass "fm-control interrupt: opencode needs a double Escape, claude a single one"
-}
-
 test_unverified_harness_is_refused() {
   local dir out rc
   dir=$(new_case unverified)
@@ -343,6 +323,18 @@ test_unverified_harness_is_refused() {
   assert_contains "$out" "no verified control mechanics" "refusal should name the missing verification"
   [ -z "$(literals "$dir")" ] || fail "an unverified harness must receive no bytes"
   pass "fm-control: a harness with no verified control mechanics is refused, not guessed at"
+}
+
+test_retired_opencode_harness_is_refused() {
+  local dir out rc
+  dir=$(new_case retired-opencode)
+  add_task "$dir" t1 opencode
+  alive_as "$dir" opencode
+  out=$(run_control "$dir" t1 exit); rc=$?
+  expect_code 1 "$rc" "the retired opencode harness should refuse"
+  assert_contains "$out" "no verified control mechanics" "refusal should name the missing verification"
+  [ -z "$(literals "$dir")" ] || fail "the retired opencode harness must receive no bytes"
+  pass "fm-control: the retired opencode harness is refused like any other unverified adapter"
 }
 
 # --- 2. backend capability matrix -------------------------------------------
@@ -381,7 +373,7 @@ test_harness_kind_capability() {
   done
   fm_control_harness_supports_kind muse secondmate \
     && fail "muse has no primary supervision protocol and must not claim a secondmate"
-  for harness in claude codex opencode pi pi-signed grok kimi omp; do
+  for harness in claude codex pi pi-signed grok kimi omp; do
     fm_control_harness_supports_kind "$harness" secondmate \
       || fail "$harness should be able to run a secondmate"
   done
@@ -889,8 +881,8 @@ test_fm_send_still_marks_the_same_secondmate_task() {
 
 test_exit_types_each_harness_verified_command
 test_interrupt_sends_each_harness_verified_key
-test_opencode_interrupts_twice_and_others_once
 test_unverified_harness_is_refused
+test_retired_opencode_harness_is_refused
 test_harness_family_resolution
 test_prefixed_recorded_harness_reaches_each_control_verb
 test_backend_key_capability_matrix

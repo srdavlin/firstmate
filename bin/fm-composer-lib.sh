@@ -64,9 +64,10 @@
 #                directly below its composer - omp's status row and
 #                braille-only animation rows (declared once below, next to
 #                the idle placeholders) - none of which is ever typed input.
-#   left-bar   - opencode: rows prefixed by a heavy left bar `┃` with no
-#                closing border, holding the idle hint, blank rows, and a
-#                mode/model footer line.
+#   left-bar   - rows prefixed by a heavy left bar `┃` with no closing
+#                border, holding the idle hint, blank rows, and a mode/model
+#                footer line. No currently verified harness draws this shape;
+#                it is retained as shared infrastructure for a future adapter.
 #   separated  - pi: content rows between two solid horizontal `─` rules, no
 #                glyph and no side border. Provable only with a live agent
 #                identity reporting an idle/done pi (herdr `agent
@@ -110,11 +111,8 @@
 # nothing.
 #
 # COVERAGE: this is exercised for the bordered box and the pi separator pair,
-# the two shapes claude 2.x renders. The opencode left bar is wired in for the
-# same treatment but is UNEXERCISED - every left-bar row this repo records
-# leads with plain text, and opencode's own prompt character is `>`, a SHELL
-# glyph deliberately outside the agent set, so no opencode shape recorded here
-# can prove a left-bar envelope and open a zone under it.
+# the two shapes claude 2.x renders. The left bar is wired in for the
+# same treatment but is UNEXERCISED - no currently verified harness draws it.
 #
 # THE SAFETY RULE for glyphs: a bare shell prompt glyph (`>` `$` `%` `#`) -
 # what a pane shows once its agent has exited to a plain login shell - is a
@@ -348,7 +346,7 @@ fm_composer_strip_ghost() {
 # Matching a footer to confirm a keystroke landed is a different question from
 # asking what a worker is doing, and the two must not be conflated.
 # Delivery-only rendered busy footers per harness. claude/codex: "esc to
-# interrupt"; opencode: "esc interrupt"; pi: "Working..."; omp: "Working…"; grok: "Ctrl+c:cancel"; agy: "esc to cancel".
+# interrupt"; pi: "Working..."; omp: "Working…"; grok: "Ctrl+c:cancel"; agy: "esc to cancel".
 # Claude's current spinner has a rotating glyph and word, but every active-turn
 # line has an ellipsis followed by a parenthesized elapsed duration. Keep this
 # signature separate from the shared default because that shape is not generic
@@ -376,7 +374,6 @@ fm_composer_strip_ghost() {
 FM_DELIVERY_BUSY_REGEX_DEFAULT='esc (to )?interrupt|Working(\.\.\.|…)|Ctrl\+c:cancel|ctrl\+c to stop|esc[[:space:]]+to[[:space:]]+cancel'
 FM_DELIVERY_CLAUDE_BUSY_REGEX_DEFAULT='esc to interrupt|…[[:space:]]+\([0-9]+[smh]'
 FM_DELIVERY_CODEX_BUSY_REGEX_DEFAULT='esc to interrupt'
-FM_DELIVERY_OPENCODE_BUSY_REGEX_DEFAULT='esc interrupt'
 FM_DELIVERY_PI_BUSY_REGEX_DEFAULT='Working\.\.\.'
 # omp (Oh My Pi) renders its TUI busy line as `Working…` with U+2026 HORIZONTAL
 # ELLIPSIS, not Pi's three ASCII dots (verified byte-level on omp 18.1.2,
@@ -423,7 +420,6 @@ fm_busy_lines_match() {  # [harness]
     case "$harness" in
       claude) regex=$FM_DELIVERY_CLAUDE_BUSY_REGEX_DEFAULT ;;
       codex) regex=$FM_DELIVERY_CODEX_BUSY_REGEX_DEFAULT ;;
-      opencode) regex=$FM_DELIVERY_OPENCODE_BUSY_REGEX_DEFAULT ;;
       pi|pi-signed) regex=$FM_DELIVERY_PI_BUSY_REGEX_DEFAULT ;;
       omp) regex=$FM_DELIVERY_OMP_BUSY_REGEX_DEFAULT ;;
       grok) regex=$FM_DELIVERY_GROK_BUSY_REGEX_DEFAULT ;;
@@ -452,16 +448,16 @@ FM_COMPOSER_SHELL_PROMPT_GLYPHS=$(printf '%s\n' '>' '$' '%' '#')
 
 # The ONE fleet-wide idle-placeholder set: composer text a harness renders in
 # an EMPTY composer that a plain capture cannot tell from typed text. Grok's
-# bordered placeholder and opencode's left-bar hint (which uses either three
-# ASCII periods or U+2026 and continues with a rotating quoted suggestion,
-# hence the unanchored tail). cursor-agent renders
+# bordered placeholder and the left-bar shape's idle hint (which uses either
+# three ASCII periods or U+2026 and continues with a rotating quoted
+# suggestion, hence the unanchored tail). cursor-agent renders
 # two, both anchored: `Plan, search, build anything` in a fresh session and
 # `Add a follow-up` once a turn has completed (verified live on cursor-agent
 # 2026.08.11-e8db854). FM_COMPOSER_IDLE_RE overrides for an unverified harness;
 # matching is case-insensitive.
 FM_COMPOSER_IDLE_RE_DEFAULT='^Type a message\.\.\.$|^Ask anything(\.\.\.|…)|^Plan, search, build anything$|^Add a follow-up$'
 
-# Opencode draws a mode/model footer line INSIDE its left-bar composer
+# The left-bar shape's own mode/model footer line lives INSIDE its composer
 # ("Build · GPT-5.5 Fast OpenAI · high"). It is composer furniture, not typed
 # text, and only the run's LAST row is ever matched against it.
 FM_COMPOSER_LEFTBAR_FOOTER_RE_DEFAULT='^(Build|Plan)[[:space:]]+·[[:space:]]+'
@@ -853,7 +849,7 @@ _fm_composer_scan_screen() {  # <plain-screen> <cursor-or-empty> [extract-wrap]
         fi
       fi
     fi
-    # Left-bar rows (opencode): a heavy left bar `┃` opening the row with no
+    # Left-bar rows: a heavy left bar `┃` opening the row with no
     # closing side border. A `┃…┃` row is a bordered box row, not a left bar.
     case "$trimmed" in
       '┃'*'┃') leftbar_start=-1 ;;
@@ -1261,7 +1257,7 @@ _fm_composer_classify_bare_wrap() {  # <screen> <styled> <glyph-row> <cursor-row
   if [ "$styled" = 1 ]; then printf 'pending'; else printf 'unknown'; fi
 }
 
-# _fm_composer_classify_leftbar: opencode's left-bar composer. Blank rows and
+# _fm_composer_classify_leftbar: the left-bar composer shape. Blank rows and
 # the idle hint read empty; the run's LAST row may be the mode/model footer
 # (composer furniture, never typed text). Real content is pending when styling
 # can prove it real, unknown otherwise.
@@ -1340,7 +1336,7 @@ _fm_composer_row_is_composer_furniture() {  # <trimmed-row> <proof-glyph>
 # _fm_composer_locate_footer_zone: THE composer footer zone of <plain> (see THE
 # COMPOSER FOOTER ZONE in this file's header). Records the bottom-most
 # glyph-PROVEN envelope in FM_COMPOSER_FOOTER_AFTER (its closing row, including
-# the opencode left bar's half-block floor), FM_COMPOSER_FOOTER_GLYPH (the
+# the left bar's half-block floor), FM_COMPOSER_FOOTER_GLYPH (the
 # proving row) and FM_COMPOSER_FOOTER_LAST (the contiguous non-blank run below
 # the closing row). The proof itself is read from the row scan, which already
 # recorded it on its single pass.
@@ -1565,7 +1561,7 @@ EOF
     # proves it is furniture. If the same placeholder-looking bytes survive
     # styling, they are real user input and must remain in the extracted content
     # (the zellij paste proof depends on observing exactly what was typed).
-    # OpenCode's left-bar hint and legacy shell-glyph boxed placeholders have no
+    # The left-bar shape's idle hint and legacy shell-glyph boxed placeholders have no
     # such styling proof, so their structurally fixed positions remain the two
     # idle-regex exceptions here.
     if [ -z "$content" ] \
