@@ -2626,6 +2626,74 @@ const hullIndex = (row) => {
   check(sawExhaust, "the checked frames never painted red exhaust");
 }
 
+// --- the saucer rim is cyan-blue in normal flight and bright white in the warp flash ----
+// Cell colors are read off the rendered rows, so this exercises only the public render path.
+{
+  const cellColors = (row) => {
+    const out = [];
+    let color = "default";
+    for (const part of row.split(new RegExp(`(${ESC}\\[[0-9;]*m)`)).filter((piece) => piece !== "")) {
+      if (new RegExp(`^${ESC}\\[[0-9;]*m$`).test(part)) color = part === RESET ? "default" : part;
+      else for (const glyph of Array.from(part)) out.push({ glyph, color });
+    }
+    return out;
+  };
+  const colorsAt = (row, glyphs) => {
+    const cells = cellColors(row);
+    const start = cells.map((cell) => cell.glyph).join("").indexOf(glyphs);
+    check(start >= 0, `${glyphs} missing from ${JSON.stringify(row)}`);
+    return cells.slice(start, start + Array.from(glyphs).length).map((cell) => cell.color);
+  };
+  const lowerRight = [CYAN, WHITE, CYAN, BLACK, BLACK, CYAN];
+  const lowerLeft = [...lowerRight].reverse();
+  const topRight = "▀─▄██▄";
+  const topLeft = "▄██▄─▀";
+  let sawLit = false;
+  let sawUnlit = false;
+  let sawRight = false;
+  let sawLeft = false;
+  for (const width of [7, 8, 12, 24, 40]) {
+    const animation = createCalmWorkingShipAnimation();
+    for (let step = 0; step < CALM_WORKING_SHIP_TICKS_PER_MOVE * 80; step += 1) {
+      const [saucerRow, hullRow] = animation.render(width);
+      const right = animation.direction() >= 0;
+      if (right) sawRight = true;
+      else sawLeft = true;
+      const lit = animation.warpFlash();
+      const expected = lit ? Array(6).fill(BRIGHT_WHITE) : right ? lowerRight : lowerLeft;
+      const label = `width ${width} step ${step} lit=${lit}`;
+      check(
+        JSON.stringify(colorsAt(hullRow, right ? BODY_RIGHT : BODY_LEFT)) === JSON.stringify(expected),
+        `${label}: lower hull colors ${JSON.stringify(colorsAt(hullRow, right ? BODY_RIGHT : BODY_LEFT))}`,
+      );
+      check(
+        JSON.stringify(colorsAt(saucerRow, right ? topRight : topLeft)) === JSON.stringify(expected),
+        `${label}: saucer row colors ${JSON.stringify(colorsAt(saucerRow, right ? topRight : topLeft))}`,
+      );
+      if (lit) sawLit = true;
+      else sawUnlit = true;
+      animation.tick();
+    }
+  }
+  check(sawLit && sawUnlit && sawRight && sawLeft, "the saucer color sweep never covered both flash states and both headings");
+
+  // The narrow single-row fallback keeps the same split: cyan saucer, white neck, cyan nacelle, bright white while lit.
+  for (const width of [3, 4, 5, 6]) {
+    const animation = createCalmWorkingShipAnimation();
+    for (let step = 0; step < CALM_WORKING_SHIP_TICKS_PER_MOVE * 40; step += 1) {
+      const [row] = animation.render(width);
+      const right = animation.direction() >= 0;
+      const lit = animation.warpFlash();
+      const expected = lit ? Array(3).fill(BRIGHT_WHITE) : [CYAN, WHITE, CYAN];
+      check(
+        JSON.stringify(colorsAt(row, right ? COMPACT_RIGHT : COMPACT_LEFT)) === JSON.stringify(expected),
+        `compact width ${width} step ${step} lit=${lit}: ${JSON.stringify(colorsAt(row, right ? COMPACT_RIGHT : COMPACT_LEFT))}`,
+      );
+      animation.tick();
+    }
+  }
+}
+
 // --- ANSI-stripped visible width is exact at every width and phase ---------------
 for (let width = 1; width <= 120; width += 1) {
   const animation = createCalmWorkingShipAnimation();
@@ -3321,7 +3389,7 @@ JS
   status=$?
   [ "$status" -eq 0 ] || fail "Pi Calm working-ship checks failed: $out"
   [ -z "$out" ] || fail "Pi Calm working-ship test printed output: $out"
-  pass "Pi Calm working ship keeps a two-row top-down Constitution-class starship over a twinkling starfield with twin nacelles and rear glow, paints stars standard white, hull standard white, nacelles standard cyan, bridge standard black, and exhaust standard red with balanced resets, trails the hull with a fading impulse trail and lights a brief bright-white warp flash that survives freeze and resume, keeps ANSI-stripped width exact, reverses cleanly at both edges and every width, clamps visible and hidden resizes, falls back deterministically when narrow, freezes and resumes across settle/start without hidden-time jumps or duplicate timers, resets only on a fresh session, and leaves Calm-off visibility untouched"
+  pass "Pi Calm working ship keeps a two-row top-down Constitution-class starship over a twinkling starfield with twin nacelles and rear glow, paints stars standard white, the neck standard white, the saucer rim and nacelles standard cyan (bright white in the flash), bridge standard black, and exhaust standard red with balanced resets, trails the hull with a fading impulse trail and lights a brief bright-white warp flash that survives freeze and resume, keeps ANSI-stripped width exact, reverses cleanly at both edges and every width, clamps visible and hidden resizes, falls back deterministically when narrow, freezes and resumes across settle/start without hidden-time jumps or duplicate timers, resets only on a fresh session, and leaves Calm-off visibility untouched"
 }
 
 # The rendered-DOM assertions below depend on a real browser, so the render step

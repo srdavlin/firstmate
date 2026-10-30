@@ -173,7 +173,7 @@ A warp flash lights the hull on the last two ticks of every 24, so it recurs on 
 Ticks rather than wall-clock timestamps drive every state change, so tests seek animation time exactly, and disposing the widget stops both cadences together.
 Star placement is a deterministic hash of column, row, and tick, so the field reads as random without a non-replayable RNG, and every glyph is one terminal column under both harnesses' width rules.
 
-Colors are standard ANSI foreground codes rather than theme lookups: stars and the grey saucer and neck are white, nacelles are cyan, the bridge oval is black, and exhaust, spark, and trail are one red, with no 256-color or RGB escape; bright white appears only for the warp flash.
+Colors are standard ANSI foreground codes rather than theme lookups: stars and the grey neck are white, the saucer rim and nacelles are cyan, the bridge oval is black, and exhaust, spark, and trail are one red, with no 256-color or RGB escape; bright white appears only for the warp flash.
 Each colored run is closed with a default-foreground reset so styling cannot bleed into the saucer row's padding, neighbouring UI, or a later frame, and geometry is always computed from visible cells rather than escape bytes.
 
 The presentation is TUI-only and visual-only.

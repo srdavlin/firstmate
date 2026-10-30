@@ -99,17 +99,18 @@ export const CALM_WORKING_SHIP_WARP_FLASH_TICKS = 2;
 
 /**
  * The color classes a frame uses. `plain` is uncolored empty sky; `star` is every
- * twinkling star; `hull` is the grey saucer rim and neck; `nacelle` is each light-blue
- * warp nacelle; `bridge` is the dark oval on the saucer; `exhaust` is the red/orange
- * nacelle glow and the impulse trail behind it; `flash` is the bright warp flash that
- * lights the hull and its streak. Each harness maps a class to its own color: Pi paints
- * them as standard ANSI white, cyan, black, and red plus bright white for the flash; the
- * Claude Code mod as Claude Code's theme colors.
+ * twinkling star; `hull` is the grey neck; `saucer` is the cyan-blue saucer rim;
+ * `nacelle` is each light-blue warp nacelle; `bridge` is the dark oval on the saucer;
+ * `exhaust` is the red/orange nacelle glow and the impulse trail behind it; `flash` is
+ * the bright warp flash that lights the hull and its streak. Each harness maps a class
+ * to its own color: Pi paints them as standard ANSI white, cyan, cyan, black, and red
+ * plus bright white for the flash; the Claude Code mod as Claude Code's theme colors.
  */
 export type CalmWorkingShipColor =
   | "plain"
   | "star"
   | "hull"
+  | "saucer"
   | "nacelle"
   | "bridge"
   | "exhaust"
@@ -119,22 +120,22 @@ export type CalmWorkingShipColor =
 const BODY_COLORS_RIGHT: readonly CalmWorkingShipColor[] = [
   "nacelle",
   "hull",
-  "hull",
+  "saucer",
   "bridge",
   "bridge",
-  "hull",
+  "saucer",
 ];
 /** Per-cell colors of the six-cell body, travelling left: the right-facing list reversed. */
 const BODY_COLORS_LEFT: readonly CalmWorkingShipColor[] = [
-  "hull",
+  "saucer",
   "bridge",
   "bridge",
-  "hull",
+  "saucer",
   "hull",
   "nacelle",
 ];
-const COMPACT_COLORS_RIGHT: readonly CalmWorkingShipColor[] = ["nacelle", "hull", "hull"];
-const COMPACT_COLORS_LEFT: readonly CalmWorkingShipColor[] = ["hull", "hull", "nacelle"];
+const COMPACT_COLORS_RIGHT: readonly CalmWorkingShipColor[] = ["nacelle", "hull", "saucer"];
+const COMPACT_COLORS_LEFT: readonly CalmWorkingShipColor[] = ["saucer", "hull", "nacelle"];
 
 /** One same-colored run of cells inside a frame row. */
 export type CalmWorkingShipRun = {

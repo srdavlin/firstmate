@@ -9,12 +9,12 @@
 // Raster colors are RGB, and the terminal paints them through a quantized 256-color
 // palette rather than the standard 16-color ANSI codes Pi's widget emits, which
 // docs/calm-mode-feasibility.md records as a bounded gap. The palette is Claude Code's
-// own: stars take a readable slate per theme family, the saucer and neck take a grey
-// hull, nacelles take light blue, the bridge oval takes a dark grey, and exhaust takes
-// a warm jet red, one set per theme family. The family follows the `theme` setting's
-// prefix (`dark*` or `light*`); `auto`, custom, missing, and unreadable values use the
-// light set as the both-readable fallback. The Pi extension keeps its standard ANSI
-// colors and is unaffected.
+// own: stars take a readable slate per theme family, the neck takes a grey hull, the
+// saucer rim and nacelles take light blue, the bridge oval takes a dark grey, and
+// exhaust takes a warm jet red, one set per theme family. The family follows the
+// `theme` setting's prefix (`dark*` or `light*`); `auto`, custom, missing, and
+// unreadable values use the light set as the both-readable fallback. The Pi extension
+// keeps its standard ANSI colors and is unaffected.
 import type {
   CalmWorkingShipColor,
   CalmWorkingShipFrame,
@@ -43,7 +43,7 @@ export type CalmShipPaletteFamily = "dark" | "light";
 
 /**
  * Claude Code's own colors per theme family: a readable slate for stars, a grey
- * saucer and neck, light-blue nacelles, a dark bridge oval, and a warm jet red for
+ * neck, a light-blue saucer rim and nacelles, a dark bridge oval, and a warm jet red for
  * the nacelle glow and impulse trail, and the warp flash in the color that contrasts
  * hardest with the theme (white on dark, near-black on light).
  */
@@ -52,6 +52,7 @@ export const CALM_SHIP_RASTER_PALETTES: Readonly<Record<CalmShipPaletteFamily, C
     plain: CALM_SHIP_RASTER_DEFAULT_COLOR,
     star: 0xc5cde0,
     hull: 0xb7bec8,
+    saucer: 0x6ec4e0,
     nacelle: 0x6ec4e0,
     bridge: 0x3a4250,
     exhaust: 0xff6a3d,
@@ -61,6 +62,7 @@ export const CALM_SHIP_RASTER_PALETTES: Readonly<Record<CalmShipPaletteFamily, C
     plain: CALM_SHIP_RASTER_DEFAULT_COLOR,
     star: 0x5c6578,
     hull: 0x5c6570,
+    saucer: 0x1a7aa3,
     nacelle: 0x1a7aa3,
     bridge: 0x2c333d,
     exhaust: 0xc4471a,
