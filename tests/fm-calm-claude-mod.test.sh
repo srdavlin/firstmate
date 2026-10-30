@@ -78,9 +78,9 @@ import { pathToFileURL } from "node:url";
 const pi = await import(pathToFileURL(${PI_SHIP@Q}).href);
 const core = await import(pathToFileURL(${MOD@Q} + "/lib/fm-calm-working-ship-sprite.ts").href);
 const ESC = "\\u001b";
-const ANSI = { star: ESC + "[37m", hull: ESC + "[37m", nacelle: ESC + "[36m", bridge: ESC + "[30m", exhaust: ESC + "[31m", flash: ESC + "[97m" };
+const ANSI = { star: ESC + "[37m", hull: ESC + "[37m", saucer: ESC + "[36m", nacelle: ESC + "[36m", bridge: ESC + "[30m", exhaust: ESC + "[31m", flash: ESC + "[97m" };
 const RESET = ESC + "[39m";
-const COLORS = ["plain", "star", "hull", "nacelle", "bridge", "exhaust", "flash"];
+const COLORS = ["plain", "star", "hull", "saucer", "nacelle", "bridge", "exhaust", "flash"];
 const STAR = core.CALM_WORKING_SHIP_STAR_GLYPHS.join("");
 const EXHAUST = core.CALM_WORKING_SHIP_EXHAUST_GLYPHS.join("");
 const SPARK = core.CALM_WORKING_SHIP_EXHAUST_SPARK.join("");
@@ -119,7 +119,7 @@ for (const width of [0, 1, 2, 3, 4, 5, 6, 9, 12, 24, 40, 80, 121]) {
         check(hull.includes(travellingRight ? BODY_RIGHT : BODY_LEFT), \`width \${width} lost the directional hull\`);
         check(saucer.includes(SAUCER_RIGHT), \`width \${width} lost the round saucer\`);
         // A lit warp flash recolors the hull cells and leaves every glyph in place.
-        const hullColors = sprite.warpFlash() ? ["flash"] : ["nacelle", "hull", "bridge"];
+        const hullColors = sprite.warpFlash() ? ["flash"] : ["nacelle", "hull", "saucer", "bridge"];
         for (const color of hullColors) check(frame[1].some((run) => run.color === color), \`the hull row lost its \${color} cells\`);
         check(frame[1].some((run) => run.color === "exhaust"), "the hull row lost its rear exhaust");
         check(frame[0].some((run) => run.color === hullColors[0]), "the saucer row lost its twin nacelle");
@@ -315,7 +315,7 @@ for (let width = 1; width <= 60; width += 1) {
       });
     } else {
       check(flashColumns.length === 0, "an unlit frame carried flash color");
-      for (const color of ["nacelle", "hull", "bridge"]) check(frame[1].some((run) => run.color === color), \`an unlit frame lost its \${color} cells\`);
+      for (const color of ["nacelle", "hull", "saucer", "bridge"]) check(frame[1].some((run) => run.color === color), \`an unlit frame lost its \${color} cells\`);
     }
     sprite.tick();
     twin.tick();
@@ -366,7 +366,7 @@ for (let width = 1; width <= 60; width += 1) {
 // Claude Code's Raster gives the flash its own contrasting color per theme family, distinct from every hull class.
 {
   for (const [family, colors] of Object.entries(raster.CALM_SHIP_RASTER_PALETTES)) {
-    const others = ["star", "hull", "nacelle", "bridge", "exhaust"].map((color) => colors[color]);
+    const others = ["star", "hull", "saucer", "nacelle", "bridge", "exhaust"].map((color) => colors[color]);
     check(!others.includes(colors.flash), \`\${family} flash color is not distinct\`);
   }
 }
@@ -407,6 +407,10 @@ const decode = (cells, columns, rows) => {
 const palettes = raster.CALM_SHIP_RASTER_PALETTES;
 check(palettes.dark.star === 0xc5cde0 && palettes.dark.hull === 0xb7bec8 && palettes.dark.nacelle === 0x6ec4e0 && palettes.dark.bridge === 0x3a4250 && palettes.dark.exhaust === 0xff6a3d, "dark palette is not slate stars, grey hull, light-blue nacelles, dark bridge, and jet exhaust");
 check(palettes.light.star === 0x5c6578 && palettes.light.hull === 0x5c6570 && palettes.light.nacelle === 0x1a7aa3 && palettes.light.bridge === 0x2c333d && palettes.light.exhaust === 0xc4471a, "light palette is not slate stars, grey hull, light-blue nacelles, dark bridge, and jet exhaust");
+// The saucer rim is the light blue, not the grey of the neck, in both theme families; the flash keeps its own contrasting color.
+check(palettes.dark.saucer === 0x6ec4e0 && palettes.light.saucer === 0x1a7aa3, "the saucer rim is not light blue");
+check(palettes.dark.saucer !== palettes.dark.hull && palettes.light.saucer !== palettes.light.hull, "the saucer rim shares the neck's grey");
+check(palettes.dark.flash === 0xffffff && palettes.light.flash === 0x0b1018, "the warp flash color changed");
 check(palettes.dark.plain === raster.CALM_SHIP_RASTER_DEFAULT_COLOR && palettes.light.plain === raster.CALM_SHIP_RASTER_DEFAULT_COLOR, "plain padding is not the terminal default");
 for (const [theme, family] of [["dark", "dark"], ["dark-ansi", "dark"], ["dark-daltonized", "dark"], ["light", "light"], ["light-ansi", "light"], ["light-daltonized", "light"], ["auto", "light"], ["custom:rose", "light"], [undefined, "light"], [42, "light"], ["", "light"]]) {
   check(raster.calmShipPaletteFamily(theme) === family, \`theme \${JSON.stringify(theme)} chose \${raster.calmShipPaletteFamily(theme)}, not \${family}\`);

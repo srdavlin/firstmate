@@ -43,8 +43,8 @@ describe("the working ship", () => {
     expect(glyphs[1]!.indexOf(BODY)).toBe(1);
     expect(glyphs[0]!.indexOf(SAUCER)).toBe(3);
     expect(foregrounds[1]![0]).toBe(DARK_EXHAUST);
-    expect(foregrounds[1]!.slice(1, 7)).toEqual([DARK_NACELLE, DARK_HULL, DARK_HULL, DARK_BRIDGE, DARK_BRIDGE, DARK_HULL]);
-    expect(foregrounds[0]!.slice(1, 7)).toEqual([DARK_NACELLE, DARK_HULL, DARK_HULL, DARK_BRIDGE, DARK_BRIDGE, DARK_HULL]);
+    expect(foregrounds[1]!.slice(1, 7)).toEqual([DARK_NACELLE, DARK_HULL, DARK_NACELLE, DARK_BRIDGE, DARK_BRIDGE, DARK_NACELLE]);
+    expect(foregrounds[0]!.slice(1, 7)).toEqual([DARK_NACELLE, DARK_HULL, DARK_NACELLE, DARK_BRIDGE, DARK_BRIDGE, DARK_NACELLE]);
     expect(foregrounds[0]!.slice(7).every((color) => color === DEFAULT || color === DARK_STAR)).toBe(true);
     expect(foregrounds[1]!.slice(7).every((color) => color === DEFAULT || color === DARK_STAR)).toBe(true);
     expect(glyphs[0]!.slice(7) + glyphs[1]!.slice(7)).toMatch(/[.*+·]/);
@@ -169,12 +169,12 @@ describe("the working ship", () => {
     expect(journal.blits).toHaveLength(0);
   });
 
-  test("paints the light theme family's slate stars, grey hull, light-blue nacelles, dark bridge, and jet exhaust", async ($, on) => {
+  test("paints the light theme family's slate stars, grey neck, light-blue saucer and nacelles, dark bridge, and jet exhaust", async ($, on) => {
     world(on, { preference: "on\n", theme: "light" });
     const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })))!;
     const { foregrounds } = decodeCells(raster.cells, 38, 2);
     expect(foregrounds[1]![0]).toBe(LIGHT_EXHAUST);
-    expect(foregrounds[1]!.slice(1, 7)).toEqual([LIGHT_NACELLE, LIGHT_HULL, LIGHT_HULL, LIGHT_BRIDGE, LIGHT_BRIDGE, LIGHT_HULL]);
+    expect(foregrounds[1]!.slice(1, 7)).toEqual([LIGHT_NACELLE, LIGHT_HULL, LIGHT_NACELLE, LIGHT_BRIDGE, LIGHT_BRIDGE, LIGHT_NACELLE]);
     expect(foregrounds[1]!.slice(7).every((color) => color === LIGHT_STAR || color === DEFAULT)).toBe(true);
   });
 
